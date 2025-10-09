@@ -1,0 +1,8 @@
+﻿{
+  "machineId": "monkey_v",
+  "name": "モンキーV（サンプル）",
+  "params": {
+    "atAvgMedals": 450,
+    "atHitRateBySetting": [240, 230, 220, 210, 200, 190]
+  }
+}
