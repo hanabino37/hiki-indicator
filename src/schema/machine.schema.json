@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hanabino37.github.io/hiki-indicator/schema/machine.schema.json",
+  "title": "Hiki Indicator Machine Schema",
+  "description": "Defines a machine (機種) record and its dynamic I/O fields for the indicator game.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "machineId",
+    "name",
+    "maker",
+    "introductionMonth",
+    "numberClass",
+    "type",
+    "io"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.0\\.0$",
+      "description": "Schema version. Use semantic versioning."
+    },
+    "machineId": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-_]{0,30}[a-z0-9])$",
+      "description": "Stable ID used in filenames and PNG save prefix. lowercase, 2-32 chars, [a-z0-9-_]."
+    },
+    "name": {
+      "type": "object",
+      "required": ["jp"],
+      "additionalProperties": false,
+      "properties": {
+        "jp": { "type": "string", "minLength": 1 },
+        "en": { "type": "string" }
+      },
+      "description": "機種名（日本語必須・英語任意）"
+    },
+    "maker": { "type": "string", "minLength": 1 },
+    "introductionMonth": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}$",
+      "description": "導入月（YYYY-MM）。例: 2025-03"
+    },
+    "numberClass": {
+      "type": "string",
+      "description": "号機の区分。例: 5号機 / 6.0号機 / 6.5号機 / 6.6号機",
+      "pattern": "^(?:[56]\\.?(:?0|5|6)号機|5号機)$"
+    },
+    "type": {
+      "type": "string",
+      "description": "タイプ: AT / ART / RT / ノーマル / A+RT / ST / その他",
+      "enum": ["AT", "ART", "RT", "ノーマル", "A+RT", "ST", "その他"]
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "url"],
+        "properties": {
+          "title": { "type": "string" },
+          "url": { "type": "string", "format": "uri" }
+        }
+      }
+    },
+    "notes": { "type": "string" },
+
+    "labelsJP": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "UI用の日本語ラベル辞書（キー=任意のI/Oキー等）"
+    },
+
+    "io": {
+      "type": "object",
+      "required": ["inputs", "outputs"],
+      "additionalProperties": false,
+      "properties": {
+        "inputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fieldDef" },
+          "minItems": 0
+        },
+        "outputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fieldDef" },
+          "minItems": 0
+        }
+      }
+    },
+
+    "scoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": ["ratio", "z", "shrinkage"],
+          "description": "既存スコア方式と一致させる。UI配線で切替または固定。"
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "方式ごとのパラメータ（例: baselineKey, targetKey, priorStrength 等）"
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "fieldDef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "labelJP", "type"],
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_]{0,31}$",
+          "description": "UI状態・計算で参照するキー"
+        },
+        "labelJP": { "type": "string" },
+        "type": { "type": "string", "enum": ["number", "string", "boolean", "enum"] },
+        "unit": { "type": "string" },
+        "placeholder": { "type": "string" },
+        "required": { "type": "boolean", "default": false },
+        "default": {},
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "step": { "type": "number" },
+        "precision": { "type": "integer", "minimum": 0, "maximum": 6 },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["value", "labelJP"],
+            "additionalProperties": false,
+            "properties": {
+              "value": { "type": ["string", "number", "boolean"] },
+              "labelJP": { "type": "string" }
+            }
+          }
+        },
+        "visible": { "type": "boolean", "default": true },
+        "mobileOnly": { "type": "boolean", "default": false }
+      }
+    }
+  }
+}
