@@ -2,11 +2,10 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  // GitHub Pages の公開パス（リポジトリ名）に合わせる
-  base: "/hiki-indicator/",
+  base: "/hiki-indicator/",   // ← ここをプロジェクトページ用に変更
   server: {
-    host: true,        // LAN からアクセス可
+    host: true,
     port: 5173,
-    strictPort: true,  // 5173 が使えなければ起動失敗
+    strictPort: true,
   },
 });
