@@ -1,8 +1,12 @@
-﻿import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+﻿// vite.config.ts
+import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [react()],
-  // GH Pages で /hiki-indicator/ 配下に公開するため
+  // GitHub Pages の公開パス（リポジトリ名）に合わせる
   base: "/hiki-indicator/",
+  server: {
+    host: true,        // LAN からアクセス可
+    port: 5173,
+    strictPort: true,  // 5173 が使えなければ起動失敗
+  },
 });

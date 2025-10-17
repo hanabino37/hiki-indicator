@@ -30,29 +30,74 @@ export interface MachineIO {
   outputs: FieldDef[];
 }
 
-export interface ReferenceLink {
-  title: string;
-  url: string;
+/* ===== Benchmarks（基準比較） ===== */
+export type BenchmarkMethod = "ratio" | "diff" | "z";
+
+export interface BenchmarkDef {
+  method: BenchmarkMethod;
+
+  // 値の取り方
+  valueKey?: string;
+  numeratorKey?: string;
+  denominatorKey?: string;
+  nKey?: string;
+
+  // 基準
+  baseline?: number;
+  stddev?: number;
+
+  // 評価ロジック
+  higherIsBetter?: boolean;
+  bands?: number[];
+
+  // 見た目のスケール
+  scale?: { min: number; mid: number; max: number };
 }
 
+/* ===== 機種レコード（任意メタは持たない） ===== */
 export interface MachineRecord {
   schemaVersion: typeof MACHINE_SCHEMA_VERSION;
   machineId: string; // 小文字英数・-_
   name: { jp: string; en?: string };
-  maker: string;
-  introductionMonth: string; // YYYY-MM
-  numberClass: string; // 5号機 / 6.0号機 / 6.5号機 / 6.6号機
-  type: "AT" | "ART" | "RT" | "ノーマル" | "A+RT" | "ST" | "その他";
-  tags?: string[];
-  references?: ReferenceLink[];
-  notes?: string;
+
   labelsJP?: Record<string, string>;
+
+  // 入出力定義（スキーマ駆動UI）
   io: MachineIO;
+
+  // 既存スコア（温存）
   scoring?: {
     method?: "ratio" | "z" | "shrinkage";
     params?: Record<string, unknown>;
   };
+
+  // 基準比較の定義（キー=メトリクス名）
+  benchmarks?: Record<string, BenchmarkDef>;
+
+  /* ====== LUCK%・σ推定などに使う任意メタ ======
+     - coinUnitPriceYen: コイン単価（20スロ基準、例: 3.1）
+     - rateYenPerCoin  : 1枚あたりの円（20円スロなら 20）
+     - sigmaSpinDefault: 機種デフォルトの1回転あたりσ（あればこちらを優先）
+     これらは存在すれば利用し、未指定でも可。 */
+  coinUnitPriceYen?: number;
+  rateYenPerCoin?: number;
+  sigmaSpinDefault?: number;
 }
 
-// Utility: find field def by key
-export const getField = (defs: FieldDef[], key: string) => defs.find(d => d.key === key);
+/* ===== Utility ===== */
+export const getField = (defs: FieldDef[], key: string) =>
+  defs.find((d) => d.key === key);
+
+export type DisplayKind = "number" | "percent" | "rate"; // rate=1/xxxx表記
+
+export interface OutputFieldMeta {
+  display?: DisplayKind;
+  precision?: number; // 出力時の小数桁（rate/percent/number 共通）
+}
+
+export interface OutputFieldDef {
+  id: string;
+  label: string;
+  // 計算は indicator/scoring 側。UI はこの meta を参照して描画だけ行う
+  meta?: OutputFieldMeta;
+}

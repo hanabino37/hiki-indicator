@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "1.0.0",
+  "machineId": "hokuto_l",
+  "name": {
+    "jp": "スマスロ北斗の拳"
+  },
+  "labelsJP": {
+    "totalSpins": "総回転数",
+    "normalSpins": "通常ゲーム数",
+    "diffCoins": "差枚数",
+    "payoutPct": "機械割（％）",
+    "firstHitRate": "初当り確率",
+    "avgCoins": "平均獲得枚数"
+  },
+  "io": {
+    "inputs": [
+      {
+        "key": "totalSpins",
+        "labelJP": "総回転数",
+        "type": "number",
+        "required": true,
+        "min": 0,
+        "step": 1,
+        "precision": 0
+      },
+      {
+        "key": "normalSpins",
+        "labelJP": "通常ゲーム数",
+        "type": "number",
+        "required": true,
+        "min": 1,
+        "step": 1,
+        "precision": 0
+      },
+      {
+        "key": "firstHitRate",
+        "labelJP": "初当り確率",
+        "type": "number",
+        "min": 1,
+        "step": 0.1,
+        "precision": 1
+      },
+      {
+        "key": "avgCoins",
+        "labelJP": "平均獲得枚数",
+        "type": "number",
+        "min": 0,
+        "step": 1,
+        "precision": 0,
+        "unit": "枚"
+      },
+      {
+        "key": "diffCoins",
+        "labelJP": "差枚数",
+        "type": "number",
+        "step": 1,
+        "precision": 0,
+        "unit": "枚"
+      }
+    ],
+    "outputs": [
+      {
+        "key": "totalSpins",
+        "labelJP": "総回転数",
+        "type": "number",
+        "precision": 0
+      },
+      {
+        "key": "firstHitRate",
+        "labelJP": "初当り確率",
+        "type": "number",
+        "precision": 1
+      },
+      {
+        "key": "avgCoins",
+        "labelJP": "平均獲得枚数",
+        "type": "number",
+        "precision": 0
+      },
+      {
+        "key": "payoutPct",
+        "labelJP": "機械割（％）",
+        "type": "number",
+        "precision": 1
+      }
+    ]
+  },
+  "benchmarks": {
+    "totalSpins": {
+      "method": "diff",
+      "baseline": 5000,
+      "higherIsBetter": true,
+      "bands": [
+        -0.5,
+        -0.1,
+        0.1,
+        0.5
+      ],
+      "scale": {
+        "min": 0,
+        "mid": 5000,
+        "max": 10000
+      }
+    },
+    "firstHitRate": {
+      "method": "z",
+      "valueKey": "firstHitRate",
+      "nKey": "normalSpins",
+      "baseline": 0.0026082420448617634,
+      "stddev": 0,
+      "higherIsBetter": false,
+      "bands": [
+        -1,
+        -0.3,
+        0.3,
+        1
+      ]
+    },
+    "avgCoins": {
+      "method": "diff",
+      "baseline": 488,
+      "higherIsBetter": true,
+      "bands": [
+        -0.15,
+        -0.05,
+        0.05,
+        0.15
+      ]
+    },
+    "payoutPct": {
+      "method": "diff",
+      "valueKey": "payoutPct",
+      "baseline": 98,
+      "higherIsBetter": true,
+      "bands": [
+        -2,
+        -0.5,
+        0.5,
+        2
+      ],
+      "scale": {
+        "min": 50,
+        "mid": 100,
+        "max": 150
+      }
+    }
+  },
+  "coinUnitPriceYen": 3.3,
+  "rateYenPerCoin": 20
+}

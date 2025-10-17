@@ -1,0 +1,544 @@
+.hi-wrap { padding: 16px; max-width: 720px; margin: 0 auto; }
+.hi-head { margin-bottom: 12px; }
+.hi-title { font-size: 1.25rem; margin: 0 0 4px; }
+.hi-sub { color: #666; font-size: .9rem; }
+
+.hi-sec { margin: 16px 0; }
+.hi-sec-title { font-size: 1.1rem; margin: 0 0 8px; }
+
+.hi-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 600px) { .hi-grid { grid-template-columns: 1fr 1fr; } }
+
+.hi-field { display: grid; gap: 6px; }
+.hi-label { font-weight: 600; }
+.hi-unit { color: #888; font-weight: 400; margin-left: 4px; font-size: .9em; }
+.hi-req { color: #d00; margin-left: 6px; }
+
+.hi-input, .hi-select {
+  width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px;
+}
+.hi-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; justify-content: center; align-items: center; }
+.hi-btn { padding: 8px 12px; border: 1px solid #333; background: #fff; border-radius: 10px; }
+.hi-output { padding: 10px; background: #fafafa; border: 1px solid #eee; border-radius: 8px; min-height: 40px; }
+/* 指標の横棒 */
+.hi-ind { display: grid; gap: 10px; margin-top: 8px; }
+.hi-ind-row { display: grid; grid-template-columns: 1fr 3fr; gap: 8px; align-items: center; }
+.hi-ind-label { font-size: .95rem; }
+.hi-ind-barwrap {
+  position: relative; height: 20px; background: #f5f5f5;
+  border: 1px solid #eee; border-radius: 10px; overflow: hidden;
+}
+.hi-ind-baseline {
+  position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: #ccc;
+}
+.hi-ind-bar {
+  height: 100%; border-radius: 10px 0 0 10px;
+}
+/* ===== IndicatorChart ===== */
+.hi-chart-wrap{
+  max-width: 720px;       /* 中央寄せ＆スマホで読みやすい幅 */
+  margin: 0 auto;
+  padding: var(--space);
+}
+
+.hi-chart{
+  display: grid;
+  gap: var(--gap);
+}
+
+/* 3カラム： [ラベル | バー | 値]  */
+.hi-row{
+  display: grid;
+  grid-template-columns: minmax(96px, 1fr)  minmax(140px, 4fr)  minmax(64px, auto);
+  align-items: center;
+  gap: var(--gap);
+}
+
+/* スマホ最適化：幅が狭いとき各カラムのミニマムを下げる */
+@media (max-width: 420px){
+  .hi-row{
+    grid-template-columns: minmax(80px, 1fr) minmax(120px, 3fr) minmax(56px, auto);
+  }
+}
+
+.hi-cell{ min-width: 0; } /* テキストのオーバーフローを防ぐための土台 */
+
+.hi-label{
+  justify-self: end;                /* 右寄せ（ご要望どおり） */
+  text-align: right;
+  font-size: 0.92rem;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hi-value{
+  justify-self: end;                /* 右端も右寄せ */
+  font-variant-numeric: tabular-nums; /* 桁が揃って読みやすい */
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hi-barTrack{
+  position: relative;
+  height: 16px;
+  border-radius: 999px;
+  background: color-mix(in oklab, white 70%, #c5c5c5);
+  overflow: hidden;
+}
+
+.hi-bar{
+  height: 100%;
+  border-radius: inherit;
+  transition: width 240ms ease;
+}
+
+/* 色スケール：白 < 青 < 黄 < 緑 < 赤 */
+.hi-bar--white { background: #ffffff; box-shadow: inset 0 0 0 1px #dcdcdc; }
+.hi-bar--blue  { background: #1e88e5; }
+.hi-bar--yellow{ background: #fdd835; }
+.hi-bar--green { background: #43a047; }
+.hi-bar--red   { background: #e53935; }
+
+/* ダークモード想定（任意）：バーのトラックを少し暗めに */
+@media (prefers-color-scheme: dark){
+  .hi-barTrack{ background: color-mix(in oklab, #2b2b2b 85%, white 15%); }
+  .hi-bar--white{ box-shadow: inset 0 0 0 1px #555; }
+}
+
+/* 基準線（中央の0点） */
+.hi-barTrack {
+  position: relative;
+  height: 16px;
+  border-radius: 999px;
+  background: color-mix(in oklab, white 70%, #c5c5c5);
+  overflow: hidden;
+}
+
+/* 既存 .hi-bar はそのまま */
+
+.hi-barBaseline{
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  /* 線の見た目：細い半透明の縦線（お好みで dashed にしてもOK） */
+  border-left: 2px solid rgba(0,0,0,.25);
+  pointer-events: none;
+  transform: translateX(-1px); /* 線の太さ分センタリング補正 */
+}
+
+@media (prefers-color-scheme: dark){
+  .hi-barTrack{ background: color-mix(in oklab, #2b2b2b 85%, white 15%); }
+  .hi-barBaseline{ border-left-color: rgba(255,255,255,.35); }
+}
+
+.hi-sec-title--center { text-align: center; }
+
+
+/* 機種選択のコンパクト中央配置 */
+.hi-pick{
+  /* デスクトップでは親 (720px) の約1/3 ≒ 240px に */
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 小画面では全幅にして操作性を確保 */
+@media (max-width: 480px){
+  .hi-pick{
+    max-width: 100%;
+  }
+}
+
+/* 3カラム： [ラベル | バー | 値] を見やすい幅に */
+.hi-row{
+  display: grid;
+  grid-template-columns: 160px 1fr 96px; /* ← ラベル広め/値も少し広く */
+  align-items: center;
+  gap: var(--gap);
+}
+@media (max-width: 480px){
+  .hi-row{
+    grid-template-columns: 120px 1fr 72px;
+  }
+}
+
+.hi-label{
+  justify-self: end;
+  text-align: right;
+  font-size: 0.95rem;
+  opacity: 0.95;
+}
+
+.hi-value{
+  justify-self: end;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hi-barTrack{
+  position: relative;
+  height: 18px;                    /* ← 少し背を高く */
+  border-radius: 999px;
+  background: color-mix(in oklab, white 70%, #c5c5c5);
+  overflow: hidden;
+}
+@media (max-width: 480px){
+  .hi-barTrack{ height: 20px; }    /* ← モバイルはさらにタップしやすく */
+}
+
+.hi-note--center{
+  text-align: center;
+  color: #666;
+  font-size: .9rem;
+  margin-top: 6px;
+}
+
+/* 行間を広く（バー下に基準テキストを入れるため） */
+.hi-chart{
+  display: grid;
+  gap: 20px;            /* ← 行間を広げる（お好みで調整） */
+}
+
+/* 3カラム： [ラベル | バー列 | 値] */
+.hi-row{
+  display: grid;
+  grid-template-columns: 160px 1fr 96px;
+  align-items: center;
+  gap: 12px;
+}
+@media (max-width: 480px){
+  .hi-row{ grid-template-columns: 120px 1fr 72px; }
+}
+
+/* バー列は縦スタック（バー本体 + 基準テキスト） */
+.hi-barCol{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;             /* バーと基準テキストの間隔 */
+}
+
+/* バーの“太さ”を2倍に（現状基準から） */
+.hi-barTrack{
+  position: relative;
+  height: 36px;         /* ← 2倍化 */
+  border-radius: 999px;
+  background: color-mix(in oklab, white 70%, #c5c5c5);
+  overflow: hidden;
+}
+@media (max-width: 480px){
+  .hi-barTrack{ height: 40px; } /* モバイルはさらに太めでも読みやすい */
+}
+
+/* 基準線（中央の0点） */
+.hi-barBaseline{
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 2px solid rgba(0,0,0,.25);
+  pointer-events: none;
+  transform: translateX(-1px);
+}
+@media (prefers-color-scheme: dark){
+  .hi-barBaseline{ border-left-color: rgba(255,255,255,.35); }
+}
+
+/* 基準値のテキスト（バー下） */
+.hi-baselineText{
+  text-align: center;
+  font-size: .85rem;
+  color: #666;
+  line-height: 1.2;
+}
+
+/* バー列は縦スタック（バー本体 + ベンチマーク行） */
+.hi-barCol{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ベンチマーク行： [下限 | 基準 | 上限] を横並びに */
+.hi-benchRow{
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: .85rem;
+  color: #666;
+  line-height: 1.2;
+}
+.hi-benchItem{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hi-benchItem--left  { text-align: left;  }
+.hi-benchItem--mid   { text-align: center;}
+.hi-benchItem--right { text-align: right; }
+
+@media (max-width: 480px){
+  .hi-benchRow{ font-size: .8rem; }
+}
+
+.hi-no-data{
+  text-align: center;
+  color: #9aa0a6;
+  padding: 28px 0;
+  font-weight: 700;
+  letter-spacing: .08em;
+  border: 1px dashed #e0e0e0;
+  border-radius: 10px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+/* 入力グリッド：左右の列間を広めにする */
+.hi-grid--form {
+  display: grid;
+  grid-template-columns: 1fr;
+  row-gap: 12px;
+  column-gap: 24px;         /* ← ここで左右の間隔をしっかり空ける */
+}
+@media (min-width: 600px) {
+  .hi-grid--form { grid-template-columns: 1fr 1fr; }
+}
+
+/* -------------------------------------------------------
+   Mobile layout (<=640px) — フォーム安定化＋チャート最大化
+   ------------------------------------------------------- */
+@media (max-width: 640px) {
+  /* 画面端の誤タップ防止の余白 */
+  .hi-sec { padding-inline: 12px; }
+
+  /* ───────── フォーム（入力欄）の安定化 ───────── */
+  /* ラベル → 入力 の縦並びを固定（順番が崩れないように） */
+  .hi-grid--form label.hi-field {
+    display: grid;
+    grid-template-areas:
+      "label"
+      "control";
+    row-gap: 8px;
+  }
+  .hi-grid--form label.hi-field > .hi-label {
+    grid-area: label;
+    text-align: left !important;       /* 右寄せを打ち消す */
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 6px;
+  }
+  /* ラベル以外（=入力コントロール）を control に配置 */
+  .hi-grid--form label.hi-field > *:not(.hi-label) {
+    grid-area: control;
+  }
+  /* 入力幅を100%で統一（以前の 90% 指定を打ち消し） */
+  .hi-grid--form label.hi-field input,
+  .hi-grid--form label.hi-field select,
+  .hi-grid--form label.hi-field textarea {
+    width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+    text-align: left;                  /* 入力文字も左寄せ */
+    font-size: 16px;                   /* iOSズーム抑制 */
+  }
+  /* ボタンの押しやすさ */
+  .hi-actions .hi-btn { min-height: 44px; }
+
+  /* ───────── チャート（指標）の視認性UP ───────── */
+  /* 1段目=ラベル/値、2段目=バー、3段目=目盛 */
+  .hi-chart .hi-row {
+    display: grid;
+    grid-template-areas:
+      "label value"
+      "bar   bar"
+      "bench bench";
+    grid-template-columns: 1fr auto;   /* ラベル可変＋値は内容幅 */
+    align-items: center;
+    row-gap: 8px;
+    padding: 8px 0;
+  }
+  .hi-chart .hi-label   { grid-area: label; text-align: left; font-size: 1rem; }
+  .hi-chart .hi-value   { grid-area: value; justify-self: end; font-variant-numeric: tabular-nums; }
+  .hi-chart .hi-barCol  { grid-area: bar; width: 100%; }
+  .hi-chart .hi-benchRow{ grid-area: bench; font-size: .8rem; opacity: .9; }
+
+  /* バーの高さ＆丸みを強調 */
+  .hi-chart .hi-barTrack { height: 22px; border-radius: 9999px; }
+  .hi-chart .hi-bar      { height: 22px; border-radius: 9999px; }
+
+  /* チャート左右に少し余白 */
+  .hi-chart { padding-inline: 10px; }
+}
+
+/* 必須マーク/単位の体裁（共通） */
+.hi-req  { color: #d00; font-weight: 700; margin-left: 2px; }
+.hi-unit { opacity: .75; }
+
+/* デスクトップ時はチャートの最大幅を広げて中央寄せ（任意） */
+@media (min-width: 641px) {
+  .hi-chart-wrap { max-width: 880px; margin: 0 auto; }
+}
+
+/* ===== 最終上書き：フォームのラベルを必ず左寄せ =====
+   ※ schema.css の一番最後に置く（他ルールより後勝ちさせる） */
+.hi-grid--form label.hi-field > .hi-label,
+.hi-grid--form .hi-field .hi-label,
+.hi-grid--form .hi-label.hi-label {   /* 具体性ブースト */
+  text-align: left !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  width: 100%;
+}
+
+@font-face{
+  font-family: "Inter Local";
+  src: url("/fonts/Inter_28pt-Italic.ttf") format("truetype");
+  font-style: italic;   /* このファイルは斜体 */
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face{
+  font-family: "Noto Sans JP Local";
+  src: url("/fonts/NotoSansJP-Bold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face{
+  font-family: "M PLUS 1p Local";
+  src: url("/fonts/MPLUS1-Medium.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+:root{
+  --font-body: "M PLUS 1p Local", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-machine: "Noto Sans JP Local", var(--font-body);
+  --font-number: "Inter Local", var(--font-body);
+}
+
+html, body { font-family: var(--font-body); }
+
+/* 機種名（見出し） */
+.hi-machine-name {
+  font-family: var(--font-machine);
+  font-weight: 700;
+}
+
+/* グラフ右端の数値 */
+.hi-value, .num {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  font-weight: 600;
+}
+
+/* 結果の数字だけ大きく＋斜体（ラベルはそのまま） */
+.hi-value {
+  font-family: var(--font-number), system-ui, sans-serif; /* Inter を割当て済み */
+  font-style: italic;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+  line-height: 1;
+  /* モバイル〜PCで気持ちよく伸縮 */
+  font-size: clamp(22px, 5.2vw, 30px);
+}
+
+/* 余白と位置（必要なら） */
+.hi-row .hi-value {
+  padding-left: 8px;
+  justify-self: end;
+}
+@media (min-width: 641px) {
+  .hi-row .hi-value {
+    font-size: clamp(24px, 1.8vw, 34px);
+  }
+}
+
+/* ── モバイル時のグラフを太く（<= 640px） ───────────────── */
+@media (max-width: 640px) {
+  /* バー本体とトラックの高さアップ */
+  .hi-barTrack,
+  .hi-bar {
+    height: 40px;              /* 元が 20〜22px なら +4〜6px くらい */
+    border-radius: 9999px;     /* 丸みキープ */
+  }
+
+  /* 基準線（中央の縦線）を少し太く＆目立たせる */
+  .hi-barBaseline {
+    width: 2px;                /* 1px → 2px に */
+    opacity: .7;
+  }
+
+  /* 行の余白も少しだけ広げて指で見やすく */
+  .hi-row {
+    row-gap: 4px;             /* 8px → 12px */
+    padding: 10px 0;
+  }
+
+  /* 下段の「下限/基準/上限」も間延びしない程度に強調 */
+  .hi-benchRow {
+    margin-top: 6px;
+    font-size: .9rem;
+  }
+}
+
+/* （好みで）大型スマホではさらに少しだけ太く */
+@media (min-width: 480px) and (max-width: 640px) {
+  .hi-barTrack, .hi-bar { height: 28px; }
+}
+
+/* 右端の値の下に出すサブテキスト（上振れ/フラット/下振れ） */
+.hi-value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* 右寄せ */
+}
+.hi-valueSub {
+  margin-top: 2px;
+  font-size: 0.9rem;
+  line-height: 1.1;
+  opacity: 0.75;
+}
+
+/* モバイルでほんの少しだけ小さく */
+@media (max-width: 640px) {
+  .hi-valueSub { font-size: 0.85rem; }
+}
+
+/* ± ボタン付き入力 */
+.hi-input-wrap {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.hi-input-wrap .hi-input {
+  flex: 1 1 auto;
+}
+.hi-sign {
+  min-width: 2.2rem;
+  height: 2.2rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #f8f8f8;
+  font-weight: 700;
+  line-height: 2.2rem;
+}
+.hi-sign:active {
+  background: #eaeaea;
+}
+
+/* ===== LUCKサブテキストの色 ===== */
+.hi-sub--right { margin-top: 2px; font-size: .9rem; }
+
+.hi-sub--up   { color: #e53935; }   /* 赤（上振れ） */
+.hi-sub--flat { color: #f5b000; }   /* 黄（フラット） */
+.hi-sub--down { color: #6aa9d6; }   /* グレー寄り水色（下振れ） */
