@@ -5,14 +5,12 @@
   "description": "機種ごとの入力/出力と、基準比較(benchmarks)の定義。導入月・号機・タイプ等は任意。",
   "type": "object",
   "additionalProperties": false,
-
   "required": [
     "schemaVersion",
     "machineId",
     "name",
     "io"
   ],
-
   "properties": {
     "schemaVersion": { "type": "string", "pattern": "^1\\.0\\.0$" },
     "machineId": {
@@ -29,7 +27,6 @@
         "en": { "type": "string" }
       }
     },
-
     "tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
     "references": {
       "type": "array",
@@ -44,13 +41,11 @@
       }
     },
     "notes": { "type": "string" },
-
     "labelsJP": {
       "type": "object",
       "additionalProperties": { "type": "string" },
       "description": "UIラベル辞書（キー=任意のI/Oキー）"
     },
-
     "io": {
       "type": "object",
       "required": ["inputs", "outputs"],
@@ -60,7 +55,6 @@
         "outputs": { "type": "array", "items": { "$ref": "#/$defs/fieldDef" }, "minItems": 0 }
       }
     },
-
     "scoring": {
       "type": "object",
       "additionalProperties": false,
@@ -69,7 +63,6 @@
         "params": { "type": "object", "additionalProperties": true }
       }
     },
-
     "benchmarks": {
       "type": "object",
       "description": "キー=メトリクス名（例: atHitRate / rareFlagRate / atAvgCoins など）",
@@ -94,29 +87,27 @@
         }
       }
     },
-
     "coinUnitPriceYen": { "type": "number", "minimum": 0 },
     "rateYenPerCoin":   { "type": "number", "minimum": 0 },
     "sigmaSpinDefault": { "type": "number", "minimum": 0 }
   },
-
   "$defs": {
     "fieldDef": {
       "type": "object",
       "additionalProperties": false,
       "required": ["key", "labelJP", "type"],
       "properties": {
-        "key": { "type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_]{0,31}$" },
-        "labelJP": { "type": "string" },
-        "type": { "type": "string", "enum": ["number", "string", "boolean", "enum"] },
-        "unit": { "type": "string" },
-        "placeholder": { "type": "string" },
-        "required": { "type": "boolean", "default": false },
-        "default": {},
-        "min": { "type": "number" },
-        "max": { "type": "number" },
-        "step": { "type": "number" },
-        "precision": { "type": "integer", "minimum": 0, "maximum": 6 },
+        "key":        { "type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_]{0,31}$" },
+        "labelJP":    { "type": "string" },
+        "type":       { "type": "string", "enum": ["number", "string", "boolean", "enum"] },
+        "unit":       { "type": "string" },
+        "placeholder":{ "type": "string" },
+        "required":   { "type": "boolean", "default": false },
+        "default":    {},
+        "min":        { "type": "number" },
+        "max":        { "type": "number" },
+        "step":       { "type": "number" },
+        "precision":  { "type": "integer", "minimum": 0, "maximum": 6 },
         "options": {
           "type": "array",
           "items": {
@@ -124,13 +115,23 @@
             "required": ["value", "labelJP"],
             "additionalProperties": false,
             "properties": {
-              "value": { "type": ["string", "number", "boolean"] },
+              "value":   { "type": ["string", "number", "boolean"] },
               "labelJP": { "type": "string" }
             }
           }
         },
-        "visible": { "type": "boolean", "default": true },
-        "mobileOnly": { "type": "boolean", "default": false }
+        "visible":    { "type": "boolean", "default": true },
+        "mobileOnly": { "type": "boolean", "default": false },
+
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._:-]+$"
+          },
+          "uniqueItems": true
+        }
       }
     }
   }
