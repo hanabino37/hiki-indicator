@@ -4,17 +4,29 @@
   "name": {
     "jp": "スマスロ モンキーターンＶ"
   },
+  "tags": ["type:at"],
+
   "coinUnitPriceYen": 3.1,
   "rateYenPerCoin": 20,
+
   "labelsJP": {
     "totalSpins": "総回転数",
     "normalSpins": "通常ゲーム数",
     "diffCoins": "差枚数",
     "payoutPct": "機械割（％）",
+    "firstHits": "初当り回数",
     "firstHitRate": "初当り確率",
     "avgCoins": "平均獲得枚数"
   },
+
   "io": {
+    "formOrder": [
+      "spins:total",
+      "spins:normal",
+      "count:firstHit",
+      "avg:getCoins",
+      "diff:coins"
+    ],
     "inputs": [
       {
         "key": "totalSpins",
@@ -23,7 +35,8 @@
         "required": true,
         "min": 0,
         "step": 1,
-        "precision": 0
+        "precision": 0,
+        "tags": ["spins", "total"]
       },
       {
         "key": "normalSpins",
@@ -32,15 +45,18 @@
         "required": true,
         "min": 1,
         "step": 1,
-        "precision": 0
+        "precision": 0,
+        "tags": ["spins", "normal"]
       },
       {
-        "key": "firstHitRate",
-        "labelJP": "初当り確率",
+        "key": "firstHits",
+        "labelJP": "初当り回数",
         "type": "number",
-        "min": 1,
-        "step": 0.1,
-        "precision": 1
+        "min": 0,
+        "step": 1,
+        "precision": 0,
+        "unit": "回",
+        "tags": ["count", "firstHit"]
       },
       {
         "key": "avgCoins",
@@ -49,7 +65,8 @@
         "min": 0,
         "step": 1,
         "precision": 0,
-        "unit": "枚"
+        "unit": "枚",
+        "tags": ["avg", "getCoins"]
       },
       {
         "key": "diffCoins",
@@ -57,7 +74,8 @@
         "type": "number",
         "step": 1,
         "precision": 0,
-        "unit": "枚"
+        "unit": "枚",
+        "tags": ["diff", "coins"]
       }
     ],
     "outputs": [
@@ -87,64 +105,37 @@
       }
     ]
   },
+
   "benchmarks": {
     "totalSpins": {
       "method": "diff",
       "baseline": 5000,
       "higherIsBetter": true,
-      "bands": [
-        -0.5,
-        -0.1,
-        0.1,
-        0.5
-      ],
-      "scale": {
-        "min": 0,
-        "mid": 5000,
-        "max": 10000
-      }
+      "bands": [-0.5, -0.1, 0.1, 0.5],
+      "scale": { "min": 0, "mid": 5000, "max": 10000 }
     },
     "firstHitRate": {
       "method": "z",
       "valueKey": "firstHitRate",
       "nKey": "normalSpins",
       "baseline": 0.00333555703802535,
-      "higherIsBetter": true,
-      "bands": [
-        -1,
-        -0.3,
-        0.3,
-        1
-      ]
+      "higherIsBetter": false,
+      "bands": [-1, -0.3, 0.3, 1]
     },
     "avgCoins": {
       "method": "diff",
       "valueKey": "avgCoins",
       "baseline": 440,
       "higherIsBetter": true,
-      "bands": [
-        -0.15,
-        -0.05,
-        0.05,
-        0.15
-      ]
+      "bands": [-0.15, -0.05, 0.05, 0.15]
     },
     "payoutPct": {
       "method": "diff",
       "valueKey": "payoutPct",
       "baseline": 97.9,
       "higherIsBetter": true,
-      "bands": [
-        -2,
-        -0.5,
-        0.5,
-        2
-      ],
-      "scale": {
-        "min": 70,
-        "mid": 100,
-        "max": 130
-      }
+      "bands": [-2, -0.5, 0.5, 2],
+      "scale": { "min": 70, "mid": 100, "max": 130 }
     }
   }
 }

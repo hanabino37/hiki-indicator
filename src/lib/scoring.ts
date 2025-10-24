@@ -6,8 +6,8 @@ import {
   computeHitLuck,
   computeTyLuck,
 } from "./luck";
-
 import { RTP_EQUAL_EPSILON_PP } from "../config/constants";
+import { isNormalType } from "./machineKind"; // ★ 追加
 
 export function luckDirection(deltaRtp_pp: number): "up"|"down"|"flat" {
   if (Math.abs(deltaRtp_pp) <= RTP_EQUAL_EPSILON_PP) return "flat";
@@ -44,6 +44,7 @@ function bayesMean(
  * - 追加: payoutPct
  * - 追加: PO-LUCK（旧Luck） + TS-LUCK + TY-LUCK
  * - 追加: 初当り回数→確率p の自動算出（firstHitCount があれば最優先）
+ * - 変更: ノーマル系では TS-LUCK の H＝bigCount を使用
  */
 export function computeOutputs(
   machine: MachineRecord,
@@ -56,14 +57,14 @@ export function computeOutputs(
   const numKey = String((p as any).numeratorKey ?? "hitCount");
   const denKey = String((p as any).denominatorKey ?? "betCount");
 
-  const hits = toNum(inputs[numKey]) ?? 0;
-  const bets = toNum(inputs[denKey]) ?? 0;
+  const hitsCompat = toNum(inputs[numKey]) ?? 0;
+  const betsCompat = toNum(inputs[denKey]) ?? 0;
 
-  const ratioRaw = safeDiv(hits, bets);
+  const ratioRaw = safeDiv(hitsCompat, betsCompat);
 
   const priorMean = toNum((p as any).priorMean) ?? 0.5;
   const priorStrength = toNum((p as any).priorStrength) ?? 0;
-  const ratioShrink = bayesMean(hits, bets, priorMean, priorStrength);
+  const ratioShrink = bayesMean(hitsCompat, betsCompat, priorMean, priorStrength);
 
   // 互換: zscore
   const targetKey: string | undefined = (p as any).targetKey;
@@ -84,24 +85,30 @@ export function computeOutputs(
 
   const out: Record<string, number | string | boolean | null> = {};
 
-  /* ---- 0) 初当り回数 → 確率p の自動算出 ---- */
+  /* ---- 0) 初当り確率 → 確率p の自動算出 ---- */
   const normalSpins = toNum(inputs["normalSpins"]);
-  const firstHitCount =
-    toNum(inputs["firstHitCount"]) ??
-    toNum(inputs["firstHits"]) ??
-    null;
+  const isNormal = isNormalType(machine);                 // ★ ノーマル系判定
+  const firstHitCount = toNum(inputs["firstHitCount"]) ?? toNum(inputs["firstHits"]) ?? null;
+  const bigCount      = toNum(inputs["bigCount"]) ?? null;
+
+  // 入力された“回数”から観測pを作る際の優先順位
+  // ノーマル系: bigCount / N、非ノーマル: firstHitCount / N
+  const hitsForRate =
+    isNormal
+      ? (bigCount ?? firstHitCount)
+      : (firstHitCount ?? bigCount);
 
   const firstHitRate_input = toNum(inputs["firstHitRate"]); // 既存（分母 or p）が入ってくる場合用
   let firstHitRate_p: number | null = null;
 
   if (
     Number.isFinite(normalSpins) &&
-    Number.isFinite(firstHitCount) &&
+    Number.isFinite(hitsForRate) &&
     (normalSpins ?? 0) > 0 &&
-    (firstHitCount ?? 0) >= 0
+    (hitsForRate ?? 0) >= 0
   ) {
     // 回数優先：p = H / N
-    firstHitRate_p = (firstHitCount as number) / (normalSpins as number);
+    firstHitRate_p = (hitsForRate as number) / (normalSpins as number);
   } else if (firstHitRate_input != null) {
     const v = firstHitRate_input;
     // 1/◯◯ or p の両対応
@@ -109,8 +116,8 @@ export function computeOutputs(
   }
 
   if (firstHitRate_p != null) {
-    out["firstHitRate"]  = firstHitRate_p;                 // ベンチマークは p を期待
-    out["firstHitDenom"] = 1 / (firstHitRate_p || 1e-9);   // 表示用（任意）
+    out["firstHitRate"]  = firstHitRate_p;               // ベンチマークは p を期待
+    out["firstHitDenom"] = 1 / (firstHitRate_p || 1e-9); // 表示用（任意）
   }
 
   /* ---- 1) 互換: 既存の特殊キーを埋める ---- */
@@ -172,9 +179,7 @@ export function computeOutputs(
   });
 
   const totalSpins =
-    toNum(inputs["totalSpins"]) ??
-    toNum(inputs["spinsN"]) ??
-    null;
+    toNum(inputs["totalSpins"]) ?? toNum(inputs["spinsN"]) ?? null;
 
   const diffCoins = toNum(inputs["diffCoins"]) ?? null;
 
@@ -201,19 +206,26 @@ export function computeOutputs(
   out["luck_sigmaSpin"]   = po.sigmaSpinUsed;
 
   // --- TS-LUCK（当たり頻度：基準p, N, H）
+  // 基準p（0..1）：BIGの基準pを firstHitRate.baseline として採用（無ければ観測p）
   const pBaseHit =
     toNum((machine.benchmarks as any)?.firstHitRate?.baseline) ??
     (firstHitRate_p ?? null);
 
+  // 成功数Hは機種によって切替：ノーマル系→bigCount、非ノーマル→firstHitCount
+  const hitsForTs =
+    isNormal
+      ? (Number(bigCount ?? 0))
+      : (Number(firstHitCount ?? 0));
+
   if (
     Number.isFinite(pBaseHit) &&
     Number.isFinite(normalSpins) &&
-    Number.isFinite(firstHitCount)
+    Number.isFinite(hitsForTs)
   ) {
     const ts = computeHitLuck({
       pBase: pBaseHit as number,
       spinsN: normalSpins as number,
-      hits: (firstHitCount as number) ?? 0,
+      hits: hitsForTs as number,
     });
     out["tsLuckPct"]       = ts.luckPct;
     out["tsLuckDirection"] = ts.direction;
@@ -234,6 +246,7 @@ export function computeOutputs(
     toNum(inputs["avgCoinsObs"]) ??
     null; // 入力がない場合は算出しない（null扱い）
 
+  // ※ 仕様どおり TY-LUCK は従来の firstHitCount を使用（ノーマル系でも変更なし）
   if (
     Number.isFinite(muBase) &&
     Number.isFinite(muObs) &&

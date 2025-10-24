@@ -23,6 +23,7 @@ export interface FieldDef {
   options?: FieldOption[]; // type === "enum" のとき
   visible?: boolean;
   mobileOnly?: boolean;
+  tags?: string[];
 }
 
 export interface MachineIO {

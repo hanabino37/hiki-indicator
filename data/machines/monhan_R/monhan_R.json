@@ -4,11 +4,13 @@
   "name": {
     "jp": "スマスロモンスターハンターライズ"
   },
+  "tags": ["type:at"],
   "labelsJP": {
     "totalSpins": "総回転数",
     "normalSpins": "通常ゲーム数",
     "diffCoins": "差枚数",
     "payoutPct": "機械割（％）",
+    "firstHits": "初当り回数",
     "firstHitRate": "初当り確率",
     "avgCoins": "平均獲得枚数"
   },
@@ -21,7 +23,8 @@
         "required": true,
         "min": 0,
         "step": 1,
-        "precision": 0
+        "precision": 0,
+        "tags": ["spins","total"]
       },
       {
         "key": "normalSpins",
@@ -30,15 +33,18 @@
         "required": true,
         "min": 1,
         "step": 1,
-        "precision": 0
+        "precision": 0,
+        "tags": ["spins","normal"]  
       },
       {
-        "key": "firstHitRate",
-        "labelJP": "初当り確率",
+        "key": "firstHits",
+        "labelJP": "初当り回数",
         "type": "number",
-        "min": 1,
-        "step": 0.1,
-        "precision": 1
+        "min": 0,
+        "step": 1,
+        "precision": 0,
+        "unit": "回",
+        "tags": ["count","firstHit"] 
       },
       {
         "key": "avgCoins",
@@ -47,7 +53,8 @@
         "min": 0,
         "step": 1,
         "precision": 0,
-        "unit": "枚"
+        "unit": "枚",
+        "tags": ["avg","getCoins"]
       },
       {
         "key": "diffCoins",
@@ -55,7 +62,8 @@
         "type": "number",
         "step": 1,
         "precision": 0,
-        "unit": "枚"
+        "unit": "枚",
+        "tags": ["diff","coins"]
       }
     ],
     "outputs": [
