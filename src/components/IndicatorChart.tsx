@@ -5,7 +5,7 @@ export type ChartRow = {
   label: string;           // 左に出す項目名
   valuePct: number;        // 0–100 のバー長
   display: string;         // 右端の数値
-  title?: string;          // 通常ツールチップ（Fallback）
+  title?: string;          // 通常ツールチップ（Fallback / ⓘボタンで表示）
   baselinePct?: number;    // 基準線の位置（0–100, 既定50）
   baselineText?: string;   // 互換用：中央だけ出す場合に使用
   benchmark?: {            // 新規：下限・基準・上限の表示
@@ -14,7 +14,7 @@ export type ChartRow = {
     max?: string;
   };
   subRight?: string;
-  subRightClass?: string; // ← これを追加
+  subRightClass?: string; // ← 追加済み（クラス名渡し）
 
   /** LUCK% 専用のリッチツールチップ用メタ（任意）
    *  これが与えられた行は、title属性ではなくカスタムツールチップを表示します。
@@ -145,7 +145,7 @@ function LuckBarWithTooltip({
 export default function IndicatorChart({ rows, ariaLabel }: Props) {
   return (
     <div className="hi-chart-wrap" aria-label={ariaLabel}>
-      {/* LUCKツールチップ用の最低限スタイル（他のCSSに吸収してOK） */}
+      {/* LUCKツールチップ & ⓘボタン用の最低限スタイル（必要なら外部CSSへ） */}
       <style>{`
         .hi-tipRoot { position: relative; outline: none; }
         .hi-tipBubble {
@@ -176,10 +176,36 @@ export default function IndicatorChart({ rows, ariaLabel }: Props) {
         .hi-tipTitle { font-size: 13px; margin-bottom: 4px; }
         .hi-tipRow { display: flex; gap: .5em; margin: 2px 0; }
         .hi-tipNote { opacity: .75; margin-top: 6px; }
+
+        /* ⓘボタン */
+        .hi-help {
+          margin-left: .5rem;
+          font-size: .85rem;
+          line-height: 1;
+          opacity: .65;
+          border: none;
+          background: transparent;
+          cursor: pointer;
+        }
+        .hi-help:focus { outline: 2px solid #999; border-radius: 4px; }
+
+        .hi-labelMain { display: flex; align-items: center; gap: .4rem; }
+        .hi-labelSub {
+          margin-top: .15rem;
+          font-size: .8rem;
+          color: #666;
+        }
       `}</style>
 
       <div className="hi-chart">
         {rows.map((r) => {
+          // 追加：LUCK行だけ日本語の短い説明
+          const luckHint =
+            r.id === "poLuckPct" ? "出玉率のヒキ" :
+            r.id === "tsLuckPct" ? "初当りのヒキ" :
+            r.id === "tyLuckPct" ? "平均獲得のヒキ" :
+            null;
+
           const width = `${clamp01(r.valuePct)}%`;
           const baseline = `${clamp01(r.baselinePct ?? 50)}%`;
           const hasBench =
@@ -190,11 +216,24 @@ export default function IndicatorChart({ rows, ariaLabel }: Props) {
 
           return (
             <div key={r.id} className="hi-row" title={isLuckRich ? undefined : r.title}>
-              {/* 左：ラベル */}
+              {/* 左：ラベル + ⓘボタン */}
               <div className="hi-cell hi-label" aria-hidden="true">
-                {r.label}
+                <div className="hi-labelMain">
+                  {r.label}
+                  {r.title && (
+                    <button
+                      type="button"
+                      className="hi-help"
+                      aria-label={`${r.label} の説明を開く`}
+                      title={r.title}
+                      onClick={() => alert(r.title!)}
+                    >
+                     ⓘ
+                    </button>
+                  )}
+                </div>
+                {luckHint && <div className="hi-labelSub">{luckHint}</div>}
               </div>
-
               {/* 中央：バー + 目盛 */}
               {isLuckRich ? (
                 <LuckBarWithTooltip row={r} width={width} baseline={baseline} />

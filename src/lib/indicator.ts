@@ -51,6 +51,22 @@ function denomToP(v: unknown): number | null {
 }
 
 /** 指標の計算 */
+
+// --- Normal CDF approximation (Abramowitz & Stegun 7.1.26) ---
+function normCdf(x: number): number {
+  // constants
+  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429;
+  const p = 0.3275911;
+  const sign = x < 0 ? -1 : 1;
+  const absx = Math.abs(x) / Math.SQRT2;
+  // A&S formula for erf
+  const t = 1 / (1 + p * absx);
+  const erf = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-absx * absx);
+  const res = 0.5 * (1 + sign * erf);
+  return res;
+}
+
+console.debug("[TY patch] computeIndicators live");
 export function computeIndicators(
   machine: MachineRecord,
   inputsRaw: Record<string, unknown>,
@@ -60,9 +76,20 @@ export function computeIndicators(
   const defs = machine.benchmarks ?? {};
   const rows: IndicatorRow[] = [];
 
+// ---- 合流: avgCoinsObs から avgCoins へフォールバック（TY/TABLE両対応） ----
+const mergedInputsRaw: Record<string, unknown> = { ...inputsRaw };
+const toNumLocal = (x: any) => (x === "" || x == null ? NaN : Number(x));
+const avgObsLocal = toNumLocal((inputsRaw as any)["avgCoinsObs"]);
+const avgRawLocal = toNumLocal((inputsRaw as any)["avgCoins"]);
+if (!Number.isFinite(avgRawLocal) && Number.isFinite(avgObsLocal)) {
+  (mergedInputsRaw as any)["avgCoins"] = avgObsLocal;
+}
+// -------------------------------------------------------------------------
+
+
   for (const [key, bm] of Object.entries(defs)) {
-    rows.push(calcOne(key, bm, labels, inputsRaw, outputsRaw));
-  }
+    rows.push(calcOne(key, bm, labels, mergedInputsRaw, outputsRaw));
+}
 
   // ※ LUCK% は IndicatorRow ではなく、toChartRows(..., outputsRaw) 側で ChartRow として追加します
   return rows;
@@ -377,31 +404,112 @@ export function toChartRows(
     };
   });
 
+
+    // ▼ LUCK% ツールチップ用ヘルパ（toChartRows 本体の中）
+    // ここは "function" で定義（前方参照に強い・型だけ宣言は置かない）
+
+    const fmt1   = (n?: number|null) => (typeof n === "number" && Number.isFinite(n)) ? n.toFixed(1) : "—";
+    const fmtInt = (n?: number|null) => (typeof n === "number" && Number.isFinite(n)) ? Math.round(n).toLocaleString() : "—";
+    const fmtPct = (n?: number|null) => (typeof n === "number" && Number.isFinite(n)) ? `${n.toFixed(1)}%` : "—";
+    const fmtDen = (p?: number|null) => (typeof p === "number" && p > 0) ? `1/${Math.round(1 / p)}` : "—";
+    const sign   = (n?: number|null, d=2) => (typeof n === "number" && Number.isFinite(n)) ? ((n>=0?"+":"") + n.toFixed(d)) : "—";
+
+    const getRow = (k: string) => rows.find(r => r.key === k);
+
+    const dirJp = (d?: "up"|"down"|"flat") =>
+      d === "up" ? "上振れ" : d === "down" ? "下振れ" : "フラット";
+    const headLine = (luckPct?: number|null, dir?: "up"|"down"|"flat") =>
+      (typeof luckPct === "number" && Number.isFinite(luckPct) && dir)
+        ? `${luckPct.toFixed(1)}%の${dirJp(dir)}。`
+        : ""; // 情報が無いときは空
+
+    // toChartRows(...) の中、build*Title 群の近くに共通関数
+    const luckShortJp = (id: string) =>
+      id === "poLuckPct" ? "出玉率のヒキ" :
+      id === "tsLuckPct" ? "初当りのヒキ" :
+      id === "tyLuckPct" ? "平均獲得のヒキ" : "";
+
+    const headerWith = (id: string, headLine: string) => {
+      const j = luckShortJp(id);
+      return (j ? `${j}\n` : "") + (headLine ? `${headLine}\n` : "");
+    };
+
+    function buildPoTitle(): string {
+      const rtpBase = getRow("payoutPct")?.baseline ?? 100;
+      const rtpObs  = (outputsRaw as any)?.payoutPct as number | undefined;
+      const dpp     = (outputsRaw as any)?.po_deltaRtp_pp as number | undefined;
+      const ev1000  = (outputsRaw as any)?.po_EV_per1000G as number | undefined;
+      const sigmaS  = (outputsRaw as any)?.po_sigmaSpin as number | undefined;
+
+      const lp = (outputsRaw as any)?.poLuckPct as number | undefined;
+      const ld = (outputsRaw as any)?.poLuckDirection as ("up"|"down"|"flat") | undefined;
+
+      const head = headLine(lp, ld);
+      const prefix = headerWith("poLuckPct", head);
+
+      return prefix
+         + `基準RTP:${fmtPct(rtpBase)} / 観測:${fmtPct(rtpObs)} / `
+         + `Δpp:${sign(dpp)} / LuckEV/1000G:${sign(ev1000,0)} / σspin:${fmtInt(sigmaS)}枚`;
+    }
+
+    function buildTsTitle(): string {
+      const p0  = getRow("firstHitRate")?.baseline ?? null;
+      const ph  = (outputsRaw as any)?.firstHitRate as number | undefined;
+      const N   = (outputsRaw as any)?.normalSpins ?? (outputsRaw as any)?.spinsN;
+      const H   = (outputsRaw as any)?.bigCount ?? (outputsRaw as any)?.firstHitCount;
+      const dK  = (typeof p0 === "number" && typeof ph === "number") ? (ph - p0) * 1000 : undefined;
+
+      const lp = (outputsRaw as any)?.tsLuckPct as number | undefined;
+      const ld = (outputsRaw as any)?.tsLuckDirection as ("up"|"down"|"flat") | undefined;
+
+      const head = headLine(lp, ld);
+      const prefix = headerWith("tsLuckPct", head);
+
+      return prefix
+           + `基準:${fmtDen(p0 ?? undefined)} / 観測:${fmtDen(ph)} / `
+           + `通常G:${fmtInt(N)} / H:${fmtInt(H)} / Δ/1000G:${sign(dK,1)}`;
+    }
+
+    function buildTyTitle(): string {
+      const mu0  = getRow("avgCoins")?.baseline ?? (outputsRaw as any)?.avgCoinsBase ?? null;
+      const muh  = (outputsRaw as any)?.avgCoins ?? (outputsRaw as any)?.avgCoinsObs;
+      const H    = (outputsRaw as any)?.firstHitCount ?? (outputsRaw as any)?.bigCount;
+      const sigH = (outputsRaw as any)?.sigmaHit;
+
+      const lp = (outputsRaw as any)?.tyLuckPct as number | undefined;
+      const ld = (outputsRaw as any)?.tyLuckDirection as ("up"|"down"|"flat") | undefined;
+
+      const head = headLine(lp, ld);
+      const prefix = headerWith("tyLuckPct", head);
+      return prefix
+          + `基準平均:${fmtInt(mu0)}枚 / 観測平均:${fmtInt(muh)}枚 / `
+          + `H:${fmtInt(H)}${typeof sigH === "number" ? ` / σhit:${fmtInt(sigH)}枚` : ""}`;
+    }
+
      // ★ LUCK% 行を最後に追加（outputsRaw が渡されている時だけ）
      if (outputsRaw) {
-    const o = outputsRaw as Record<string, any>;
+      const o = outputsRaw as Record<string, any>;
 
-    const lucks: Array<{ id: string; label: string; value?: number; dir?: string }> = [
-      { id: "poLuckPct", label: "PO-LUCK%", value: o.poLuckPct, dir: o.poLuckDirection },
-      { id: "tsLuckPct", label: "TS-LUCK%", value: o.tsLuckPct, dir: o.tsLuckDirection },
-      { id: "tyLuckPct", label: "TY-LUCK%", value: o.tyLuckPct, dir: o.tyLuckDirection },
-    ];
+      const lucks = [
+        { id: "poLuckPct", label: "PO-LUCK%", value: o.poLuckPct, dir: o.poLuckDirection, title: buildPoTitle() },
+        { id: "tsLuckPct", label: "TS-LUCK%", value: o.tsLuckPct, dir: o.tsLuckDirection, title: buildTsTitle() },
+        { id: "tyLuckPct", label: "TY-LUCK%", value: o.tyLuckPct, dir: o.tyLuckDirection, title: buildTyTitle() },
+      ];
 
-    for (const L of lucks) {
-      if (typeof L.value !== "number" || !Number.isFinite(L.value)) continue;
-
-      chartRows.push({
-        id: L.id,
-        label: L.label,
-        valuePct: Math.max(0, Math.min(L.value, 100)), // 0–100 に丸め
-        display: `${L.value.toFixed(1)}%`,
-        title: undefined,
-        benchmark: { min: "下限: 0", mid: "基準: 50", max: "上限: 100" },
-        subRight: dirToSub(L.dir), // ← 矢印+文言をここに
-        subRightClass: dirToClass(L.dir),       // ← これを追加
-      });
+      for (const L of lucks) {
+        if (typeof L.value !== "number" || !Number.isFinite(L.value)) continue;
+        chartRows.push({
+          id: L.id,
+          label: L.label,
+          valuePct: Math.max(0, Math.min(L.value, 100)),
+          display: `${L.value.toFixed(1)}%`,
+          title: L.title, // ← ここに渡す
+          benchmark: { min: "下限: 0", mid: "基準: 50", max: "上限: 100" },
+          subRight: dirToSub(L.dir),
+          subRightClass: dirToClass(L.dir),
+        });
+      } 
     }
-  }
 
   return chartRows;
 }
@@ -466,4 +574,5 @@ function makeLuckRowGeneric(outputs: Record<string, any>, spec: LuckMini) {
     // 既存のリッチツールチップがある場合は必要に応じてここに渡す
   };
 }
+
 

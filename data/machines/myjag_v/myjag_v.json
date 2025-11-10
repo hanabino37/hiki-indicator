@@ -1,23 +1,16 @@
 {
   "schemaVersion": "1.0.0",
-  "machineId": "arexbright",
+  "machineId": "v",
   "name": {
-    "jp": "アレックスブライト"
+    "jp": "マイジャグラーV"
   },
-  "tags": ["type:normal"],
-  
   "labelsJP": {
     "totalSpins": "総回転数",
     "normalSpins": "通常ゲーム数",
-    "diffCoins": "差枚数",
+    "diffCoins": "差枚",
     "payoutPct": "機械割（％）",
     "firstHitRate": "BIG確率",
-    "regHitRate": "REG確率",
-    "grapeRate": "ブドウ確率",
-    "avgCoins": "平均獲得枚数",
-    "bigCount": "BIG回数",
-    "regCount": "REG回数",
-    "grapeCount": "ブドウ回数"
+    "avgCoins": "平均獲得枚数"
   },
   "io": {
     "inputs": [
@@ -26,60 +19,75 @@
         "labelJP": "総回転数",
         "type": "number",
         "required": true,
-        "tags": ["role:totalSpins"],
         "min": 0,
         "step": 1,
-        "precision": 0
+        "precision": 0,
+        "tags": [
+          "spins",
+          "total"
+        ]
       },
       {
         "key": "normalSpins",
         "labelJP": "通常ゲーム数",
         "type": "number",
         "required": true,
-        "tags": ["role:normalSpins"] ,
         "min": 1,
         "step": 1,
-        "precision": 0
+        "precision": 0,
+        "tags": [
+          "spins",
+          "normal"
+        ]
       },
       {
-        "key": "firstHitRate",
-        "labelJP": "BIG確率",
-        "type": "number",
-        "tags": ["hide:normal"],
-        "min": 1,
-        "step": 0.1,
-        "precision": 1
-      },
-      {
-        "key": "regHitRate",
-        "labelJP": "REG確率",
-        "type": "number",
-        "tags": ["hide:normal"],
-        "min": 1,
-        "step": 0.1,
-        "precision": 1
-      },
-      {
-        "key": "avgCoins",
+        "key": "avgCoinsObs",
         "labelJP": "平均獲得枚数",
         "type": "number",
-        "tags": ["role:avgCoins"],
         "min": 0,
         "step": 1,
         "precision": 0,
-        "unit": "枚"
+        "unit": "枚",
+        "tags": [
+          "avg",
+          "obs"
+        ]
       },
-      { "key": "bigCount",    "labelJP": "BIG回数",   "type": "number", "min": 0, "step": 1, "precision": 0 },
-      { "key": "regCount",    "labelJP": "REG回数",   "type": "number", "min": 0, "step": 1, "precision": 0 },
-      { "key": "grapeCount",  "labelJP": "ブドウ回数", "type": "number", "min": 0, "step": 1, "precision": 0 },
       {
         "key": "diffCoins",
         "labelJP": "差枚数",
         "type": "number",
-        "tags": ["role:diffCoins"] ,
         "step": 1,
         "precision": 0,
-        "unit": "枚"
+        "unit": "枚",
+        "tags": [
+          "diff",
+          "coins"
+        ]
+      },
+      {
+        "key": "bigCount",
+        "labelJP": "BIG回数",
+        "type": "number",
+        "min": 0,
+        "step": 1,
+        "precision": 0,
+        "tags": [
+          "count",
+          "big"
+        ]
+      },
+      {
+        "key": "regCount",
+        "labelJP": "REG回数",
+        "type": "number",
+        "min": 0,
+        "step": 1,
+        "precision": 0,
+        "tags": [
+          "count",
+          "reg"
+        ]
       }
     ],
     "outputs": [
@@ -91,13 +99,7 @@
       },
       {
         "key": "firstHitRate",
-        "labelJP": "BIG確率",
-        "type": "number",
-        "precision": 1
-      },
-      {
-        "key": "regHitRate",
-        "labelJP": "REG確率",
+        "labelJP": "初当り確率",
         "type": "number",
         "precision": 1
       },
@@ -108,17 +110,19 @@
         "precision": 0
       },
       {
-        "key": "grapeRate",
-        "labelJP": "ブドウ確率",
-        "type": "number",
-        "precision": 1
-      },
-      {
         "key": "payoutPct",
         "labelJP": "機械割（％）",
         "type": "number",
         "precision": 1
       }
+    ],
+    "formOrder": [
+      "spins:total",
+      "spins:normal",
+      "count:big",
+      "count:reg",
+      "avg:obs",
+      "diff:coins"
     ]
   },
   "benchmarks": {
@@ -142,7 +146,7 @@
       "method": "z",
       "valueKey": "firstHitRate",
       "nKey": "normalSpins",
-      "baseline": 0.003235198964736331,
+      "baseline": 0.0036616623947272058,
       "stddev": 0,
       "higherIsBetter": false,
       "bands": [
@@ -154,19 +158,20 @@
     },
     "avgCoins": {
       "method": "diff",
-      "baseline": 370,
+      "baseline": 182.4,
       "higherIsBetter": true,
       "bands": [
         -0.15,
         -0.05,
         0.05,
         0.15
-      ]
+      ],
+      "scale": { "min": 96, "mid": 184, "max": 240 }
     },
     "payoutPct": {
       "method": "diff",
       "valueKey": "payoutPct",
-      "baseline": 98.8,
+      "baseline": 97.0,
       "higherIsBetter": true,
       "bands": [
         -2,
@@ -179,36 +184,31 @@
         "mid": 100,
         "max": 150
       }
-    },
-    "regHitRate": {
-      "method": "z",
-      "valueKey": "regHitRate",
-      "nKey": "normalSpins",
-      "higherIsBetter": false,
-      "stddev": 0,
-      "bands": [
-        -1,
-        -0.3,
-        0.3,
-        1
-      ],
-      "baseline": 0.0023348120476301658
-    },
-    "grapeRate": {
-      "method": "z",
-      "valueKey": "grapeRate",
-      "nKey": "normalSpins",
-      "higherIsBetter": false,
-      "stddev": 0,
-      "bands": [
-        -1,
-        -0.3,
-        0.3,
-        1
-      ],
-      "baseline": 0.00390625
     }
   },
-  "coinUnitPriceYen": 2.5,
-  "rateYenPerCoin": 20
+  "coinUnitPriceYen": 2.0,
+  "rateYenPerCoin": 20.0,
+  "avgCoinsAuto": {
+    "enabled": true,
+    "targetKey": "avgCoinsObs",
+    "bigKey": "bigCount",
+    "regKey": "regCount",
+    "bigAvg": 240,
+    "regAvg": 96,
+    "labelsJP": {
+      "bigCount": "BIG回数",
+      "regCount": "REG回数",
+      "button": "自動"
+    },
+    "round": "nearest"
+  },
+  "baselines": {
+    "firstHitRate": "0.003661662394727205",
+    "avgCoinsBase": 182.4,
+    "payoutPctBase": 97.0
+  },
+  "notes": "Formatted from source JSON at 2025-11-05T03:35:49",
+  "tags": [
+    "type:normal"
+  ]
 }

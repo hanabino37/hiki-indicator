@@ -1,4 +1,4 @@
-/* ---------- src/components/SchemaForm.tsx (tags-v1) ---------- */
+/* ---------- src/components/SchemaForm.tsx (avgCoinsAuto 対応・安定版) ---------- */
 import React, { useEffect, useMemo } from "react";
 import type { MachineRecord, FieldDef } from "../types/schema";
 import { jpLabel } from "../lib/schemaRegistry";
@@ -161,10 +161,28 @@ export default function SchemaForm({
   actions,
   showOutputs = true,
 }: Props) {
+  // --- avgCoinsAuto 機能フラグ（この機種専用機能） ---
+  const avgAuto = (machine as any)?.avgCoinsAuto?.enabled
+    ? (machine as any).avgCoinsAuto as {
+        enabled: boolean;
+        targetKey?: string; // 既定: "avgCoinsObs"
+        bigKey?: string;    // 既定: "bigCount"
+        regKey?: string;    // 既定: "regCount"
+        bigAvg?: number;    // 既定: 240
+        regAvg?: number;    // 既定: 96
+        labelsJP?: { bigCount?: string; regCount?: string; button?: string };
+        round?: "nearest" | "floor" | "ceil";
+      }
+    : undefined;
+
+  const targetKey = avgAuto?.targetKey ?? "avgCoinsObs";
+  const bigKey = avgAuto?.bigKey ?? "bigCount";
+  const regKey = avgAuto?.regKey ?? "regCount";
+
   // ---------- 入力定義：tags を考慮したフィルタ & 並び ----------
   const inputDefs: FieldDef[] = useMemo(() => {
     const base = machine.io?.inputs || [];
-    const normal = isNormalType(machine);
+    const normal = isNormalType(machine) || !!(machine as any)?.avgCoinsAuto?.enabled;
 
     // firstHit* は **ノーマル系の時だけ** UI 入力から外す
     const dropFirstHit = (d: FieldDef) => {
@@ -174,8 +192,6 @@ export default function SchemaForm({
     };
 
     // ノーマル系の時だけ「REG確率（確率欄）」を除外
-    // 1) タグ: ["prob","reg"]（ただし BIG の確率は残す）
-    // 2) フォールバック: キー/ラベルから判定
     const dropRegProbForNormal = (d: FieldDef) => {
       if (!normal) return false;
 
@@ -192,51 +208,39 @@ export default function SchemaForm({
       return (isKeyProb && /reg/i.test(k)) || (isLabelProb && /REG/.test(lbl));
     };
 
-    // ▼ 除外を適用
-    const without = base.filter(
-      (d) => !(dropFirstHit(d) || dropRegProbForNormal(d))
-    );
+    // ▼ 除外を適用（ここは再代入があるので let）
+    let without = base.filter((d) => !(dropFirstHit(d) || dropRegProbForNormal(d)));
 
-    // ▼ BIG/REG の自動追加は「ノーマル系のときだけ」
-    let withAuto: FieldDef[] = without;
-    if (normal) {
-      const exists = (k: string) =>
-        without.some((d) => (d.key || "").toLowerCase() === k.toLowerCase());
-      const add: FieldDef[] = [];
-      if (!exists("bigCount")) {
-        add.push({
-          key: "bigCount",
-          labelJP: "BIG回数",
+    // ▼ avgCoinsAuto が有効なときは、BIG/REG キーを**存在保証**する
+    const ensureKey = (k: string, labelJP: string, tags: string[]) => {
+      const exists = without.some(d => (d.key || "").toLowerCase() === k.toLowerCase());
+      if (!exists) {
+        without = without.concat([{
+          key: k,
+          labelJP,
           type: "number",
           min: 0, step: 1, precision: 0, required: false,
           placeholder: "例）12",
-          ...( { tags: ["count","big"] } as any ),
-        } as FieldDef);
+          ...( { tags } as any ),
+        } as FieldDef]);
       }
-      if (!exists("regCount")) {
-        add.push({
-          key: "regCount",
-          labelJP: "REG回数",
-          type: "number",
-          min: 0, step: 1, precision: 0, required: false,
-          placeholder: "例）6",
-          ...( { tags: ["count","reg"] } as any ),
-        } as FieldDef);
-      }
-      withAuto = [...without, ...add];
+    };
+    if (avgAuto?.enabled) {
+      ensureKey(bigKey, avgAuto?.labelsJP?.bigCount ?? "BIG回数", ["count","big"]);
+      ensureKey(regKey, avgAuto?.labelsJP?.regCount ?? "REG回数", ["count","reg"]);
+    } else if (normal) {
+      // avgAuto 無効でもノーマル系は便宜上BIG/REGを補う（従来挙動）
+      ensureKey("bigCount", "BIG回数", ["count","big"]);
+      ensureKey("regCount", "REG回数", ["count","reg"]);
     }
 
-    // debug removed
-
     // ▼ AT系では BIG/REG を **最終的に必ず** 強制除去（混入対策）
-    const afterForceDrop = normal
-      ? withAuto
-      : withAuto.filter(d => {
+    const afterForceDrop = isNormalType(machine)
+      ? without
+      : without.filter(d => {
           const k = (d.key || "").toLowerCase();
           return k !== "bigcount" && k !== "regcount";
         });
-
-    // debug removed
 
     // ▼ 並びの決定（formOrder > フォールバック）
     const formOrder = arr((machine.io as any)?.formOrder).map((s) => String(s).toLowerCase());
@@ -249,37 +253,38 @@ export default function SchemaForm({
     // AT用：従来の「確率/レート」
     const FRUIT_RATE_RE  = /(budou|grape|bell|cherry|suika|melon|fruit).*rate$/i;
 
-    // ★ フォールバックデフォ順（formOrder が無い時）
     const fallbackOrderIndex = (kRaw: string) => {
-     const k = (kRaw || "").toLowerCase();
+      const k = (kRaw || "").toLowerCase();
 
-     if (normal) {
-       // ノーマル系：総回転 → 通常 → BIG回 → REG回 → ブドウ回数(等) → 平均獲得 → 差枚
-       if (k === "totalspins") return 0;
-       if (k === "normalspins") return 1;
-       if (k === "bigcount")    return 2;
-       if (k === "regcount")    return 3;
-       if (FRUIT_COUNT_RE.test(k)) return 4;
-       if (AVG_KEYS.includes(k)) return 5;
-       if (k === "diffcoins")   return 6;
-       return Number.MAX_SAFE_INTEGER;
-     }
+      if (normal) {
+        // ノーマル系：総回転 → 通常 → BIG回 → REG回 → ブドウ回数(等) → 平均獲得 → 差枚
+        if (k === "totalspins") return 0;
+        if (k === "normalspins") return 1;
+        if (k === bigKey.toLowerCase()) return 2;
+        if (k === regKey.toLowerCase()) return 3;
+        if (FRUIT_COUNT_RE.test(k)) return 4;
+        if (AVG_KEYS.includes(k)) return 5;
+        if (k === "diffcoins")   return 6;
+        return Number.MAX_SAFE_INTEGER;
+      }
 
-       // AT系（現状どおり）
-       if (k === "totalspins") return 0;
-       if (k === "normalspins") return 1;
-       if (k === "firsthits")   return 2;
-       if (AVG_KEYS.includes(k)) return 3;
-       if (FRUIT_RATE_RE.test(k)) return 4;
-       if (k === "diffcoins")   return 5;
-      return Number.MAX_SAFE_INTEGER; 
+      // AT系（現状どおり）
+      if (k === "totalspins") return 0;
+      if (k === "normalspins") return 1;
+      if (k === "firsthits")   return 2;
+      if (AVG_KEYS.includes(k)) return 3;
+      if (FRUIT_RATE_RE.test(k)) return 4;
+      if (k === "diffcoins")   return 5;
+      return Number.MAX_SAFE_INTEGER;
     };
 
     const orderIndexByFormOrder = (d: FieldDef): number => {
       const tk = getTagKey(d); // "spins:total" 等
-      if (tk) {
-        const idx = formOrder.indexOf(tk);
-        if (idx >= 0) return idx;
+      if (hasFormOrder) {
+        if (tk) {
+          const idx = formOrder.indexOf(tk);
+          if (idx >= 0) return idx;
+        }
       }
       return fallbackOrderIndex(d.key || "");
     };
@@ -289,10 +294,8 @@ export default function SchemaForm({
       return fallbackOrderIndex(a.key || "") - fallbackOrderIndex(b.key || "");
     });
 
-    // debug removed
-
     return merged;
-  }, [machine]);
+  }, [machine, avgAuto?.enabled, bigKey, regKey]);
 
   const outputDefs = machine.io?.outputs || [];
 
@@ -334,30 +337,100 @@ export default function SchemaForm({
   }
   // —— ここまで出力レンダラ ——
 
-  return (
-    <div className="hi-wrap">
-      <header className="hi-head">
-        <h1 className="hi-title">{machine.name.jp}</h1>
-        <div style={{ fontSize: 12, opacity: .6 }}>form-ver: <b>tags-v1</b></div>
-      </header>
+  // —— 平均獲得枚数「自動」計算 ——
+  const computeAvgAndWrite = () => {
+    if (!avgAuto?.enabled) return;
+    const big = Number(inputs[bigKey] ?? 0);
+    const reg = Number(inputs[regKey] ?? 0);
+    const total = big + reg;
+    if (!total || total <= 0) {
+      // 必要ならトースト等に差し替え可
+      // alert("BIG+REG が 0 のため計算できません");
+      return;
+    }
+    const b = big / total;
+    const r = reg / total;
+    const base =
+      b * (avgAuto?.bigAvg ?? 240) +
+      r * (avgAuto?.regAvg ?? 96);
 
-      <section className="hi-sec">
-        <h2 className="hi-sec-title">入力</h2>
-        <div className="hi-grid hi-grid--form">
-          {inputDefs.map((def) => (
-            <label key={def.key} className="hi-field">
-              <div className="hi-label">
-                {jpLabel(machine, def.key, def.labelJP)}
-                {def.unit ? <span className="hi-unit">（{def.unit}）</span> : null}
-                {def.required ? <span className="hi-req">＊</span> : null}
-              </div>
+    let result = base;
+    const mode = avgAuto?.round ?? "nearest";
+    if (mode === "nearest") result = Math.round(base);
+    if (mode === "floor") result = Math.floor(base);
+    if (mode === "ceil") result = Math.ceil(base);
+
+    setInputs((s) => ({
+     ...s,
+     [targetKey]: result,
+     avgCoins: result, // 互換: TY側がavgCoins参照でもOKにする
+     }));
+  };
+
+  // —— フィールド描画（avgCoinsObs の右横に「自動」ボタンを追加） ——
+  const renderField = (def: FieldDef) => {
+    const label = (
+      <div className="hi-label">
+        {jpLabel(machine, def.key, def.labelJP)}
+        {def.unit ? <span className="hi-unit">（{def.unit}）</span> : null}
+        {def.required ? <span className="hi-req">＊</span> : null}
+      </div>
+    );
+
+    // 対象キー（avgCoinsObs 等）なら「自動」ボタン付きのレイアウトで上書き
+    if (avgAuto?.enabled && def.key === targetKey) {
+      return (
+        <label key={def.key} className="hi-field">
+          {label}
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
               <InputControl
                 def={def}
                 value={inputs[def.key]}
                 onChange={(v) => setInputs((s: Values) => ({ ...s, [def.key]: v }))}
               />
-            </label>
-          ))}
+            </div>
+            <button
+              type="button"
+              className="px-3 py-2 rounded-2xl border shadow-sm active:scale-[0.99]"
+              onClick={computeAvgAndWrite}
+              aria-label="平均獲得枚数を自動計算して反映"
+              title="平均獲得枚数を自動計算して反映"
+            >
+              {(avgAuto.labelsJP && avgAuto.labelsJP.button) || "自動"}
+            </button>
+          </div>
+          <div className="text-xs text-gray-600 mt-1">
+            計算式：BIG/(BIG+REG)×{avgAuto?.bigAvg ?? 240} + REG/(BIG+REG)×{avgAuto?.regAvg ?? 96}
+          </div>
+        </label>
+      );
+    }
+
+    // 通常フィールド
+    return (
+      <label key={def.key} className="hi-field">
+        {label}
+        <InputControl
+          def={def}
+          value={inputs[def.key]}
+          onChange={(v) => setInputs((s: Values) => ({ ...s, [def.key]: v,...(def.key === targetKey ? { avgCoins: v } : {}), }))}
+        />
+      </label>
+    );
+  };
+
+  return (
+    <div className="hi-wrap">
+      <header className="hi-head">
+        <h1 className="hi-title">{machine.name.jp}</h1>
+        <div style={{ fontSize: 12, opacity: .6 }}>form-ver: <b>avgAuto</b></div>
+      </header>
+
+      <section className="hi-sec">
+        <h2 className="hi-sec-title">入力</h2>
+        <div className="hi-grid hi-grid--form">
+          {inputDefs.map((def) => renderField(def))}
         </div>
 
         {actions ? <div className="hi-actions" style={{ marginTop: 8 }}>{actions}</div> : null}
