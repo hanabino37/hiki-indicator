@@ -7,7 +7,7 @@ import {
   computeTyLuck,
 } from "./luck";
 import { RTP_EQUAL_EPSILON_PP } from "../config/constants";
-import { isNormalType } from "./machineKind"; // ★ 追加
+import { isNormalType } from "./machineKind"; // 既存どおり利用
 
 export function luckDirection(deltaRtp_pp: number): "up"|"down"|"flat" {
   if (Math.abs(deltaRtp_pp) <= RTP_EQUAL_EPSILON_PP) return "flat";
@@ -87,9 +87,56 @@ export function computeOutputs(
 
   /* ---- 0) 初当り確率 → 確率p の自動算出 ---- */
   const normalSpins = toNum(inputs["normalSpins"]);
-  const isNormal = isNormalType(machine);                 // ★ ノーマル系判定
+  const isNormal = isNormalType(machine); // ノーマル系判定（既存ロジック）
   const firstHitCount = toNum(inputs["firstHitCount"]) ?? toNum(inputs["firstHits"]) ?? null;
   const bigCount      = toNum(inputs["bigCount"]) ?? null;
+
+  // すでに normalSpins, toNum, out はある前提
+  const regCount = toNum(inputs["regCount"]) ?? toNum(inputs["regHits"]); // フォールバック任意
+  let regHitRate_p: number | null = null;
+
+  if (
+    Number.isFinite(normalSpins) &&
+    Number.isFinite(regCount) &&
+    (normalSpins as number) > 0 &&
+    (regCount as number) >= 0
+  ) {
+    // 回数 → 確率p
+    regHitRate_p = (regCount as number) / (normalSpins as number);
+  } else {
+    // 互換: 確率(0..1) or 分母(>1 の 1/x) で入ってくる場合も受ける
+    const v = toNum(inputs["regHitRate"]);
+    if (v != null) regHitRate_p = v > 0 && v <= 1 ? v : v > 0 ? 1 / v : null;
+  }
+
+  if (regHitRate_p != null) {
+    out["regHitRate"]  = regHitRate_p;               // ★このキー名がベンチの valueKey と一致必須
+    out["regHitDenom"] = 1 / (regHitRate_p || 1e-9); // 表示用（任意）
+  }
+  // normalSpins は既存の変数を使用
+  const grapeCount = toNum(inputs["grapeCount"]);
+  let grapeRate_p: number | null = null;
+
+  if (
+    Number.isFinite(normalSpins) &&
+    Number.isFinite(grapeCount) &&
+    (normalSpins as number) > 0 &&
+    (grapeCount as number) >= 0
+  ) {
+    // 回数→確率
+    grapeRate_p = (grapeCount as number) / (normalSpins as number);
+  } else {
+    // 互換：確率または分母(1/x)で入ってくる場合も受付
+    const grapeIn = toNum(inputs["grapeRate"]);
+    if (grapeIn != null) {
+      grapeRate_p = grapeIn > 0 && grapeIn <= 1 ? grapeIn : grapeIn > 0 ? 1 / grapeIn : null;
+    }
+  }
+
+  if (grapeRate_p != null) {
+    out["grapeRate"]  = grapeRate_p;                 // ← グラフはこれを見る（valueKeyで指定）
+    out["grapeDenom"] = 1 / (grapeRate_p || 1e-9);   // ← 表示用（必要なら）
+  }
 
   // 入力された“回数”から観測pを作る際の優先順位
   // ノーマル系: bigCount / N、非ノーマル: firstHitCount / N
@@ -234,40 +281,90 @@ export function computeOutputs(
     out["tsLuckDirection"] = "flat";
   }
 
-  // --- TY-LUCK（1発の重さ：基準平均/観測平均/H/σhit）
-  const muBase =
-    toNum((machine.benchmarks as any)?.avgCoins?.baseline) ??
-    toNum(inputs["avgCoinsBase"]) ??
-    null;
+  // --- TY-LUCK（1発の重さ：基準平均/観測平均/σhit）★修正：hits未入力でも必ず算出 ---
+const muBase =
+  toNum((machine as any)?.baselines?.avgCoinsBase) ??
+  toNum((machine.benchmarks as any)?.avgCoins?.baseline) ??
+  toNum(inputs["avgCoinsBase"]) ??
+  null;
 
-  // 観測平均枚数（1発あたり）
-  const muObs =
-    toNum(inputs["avgCoins"]) ??
-    toNum(inputs["avgCoinsObs"]) ??
-    null; // 入力がない場合は算出しない（null扱い）
+// 観測平均（avgCoins が無ければ avgCoinsObs を使う）
+const muObs =
+  toNum(inputs["avgCoins"]) ??
+  toNum(inputs["avgCoinsObs"]) ??
+  null;
 
-  // ※ 仕様どおり TY-LUCK は従来の firstHitCount を使用（ノーマル系でも変更なし）
-  if (
-    Number.isFinite(muBase) &&
-    Number.isFinite(muObs) &&
-    Number.isFinite(firstHitCount) &&
-    (firstHitCount ?? 0) > 0
-  ) {
-    const ty = computeTyLuck({
-      muBase: muBase as number,
-      muObs:  muObs as number,
-      hits:   firstHitCount as number,
-      coinUnitPriceYen: (machine as any).coinUnitPriceYen ?? null,
-      // 必要なら inputs["sigmaHit"] や kHit を受けられるようにしておく
-      sigmaHit: toNum(inputs["sigmaHit"]) ?? undefined,
-      kHit:     toNum(inputs["kHit"]) ?? undefined,
-    });
-    out["tyLuckPct"]       = ty.luckPct;
-    out["tyLuckDirection"] = ty.direction;
+// 表示互換：平均獲得枚数の出力キーも埋める
+if (muObs != null) out["avgCoins"] = muObs;
+
+// σ_hit：機種定義 > 入力 > 既定600
+const sigmaHit =
+  toNum((machine as any)?.sigma?.hit) ??
+  toNum((machine as any)?.ty?.sigmaHit) ??
+  toNum(inputs["sigmaHit"]) ??
+  600;
+
+// 任意：あれば使う（無ければ undefined）
+const hitsForTy = toNum(inputs["firstHitCount"]) ?? undefined;
+
+// 正規近似（両側）フォールバック
+const erf = (x: number) => {
+  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+  const sign = x < 0 ? -1 : 1;
+  const t = 1/(1+p*Math.abs(x));
+  const y = 1 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*Math.exp(-x*x);
+  return sign*y;
+};
+const phi = (x: number) => 0.5 * (1 + erf(x / Math.SQRT2));
+
+if (
+  Number.isFinite(muBase) &&
+  Number.isFinite(muObs) &&
+  Number.isFinite(sigmaHit) &&
+  (sigmaHit as number) > 0
+) {
+  // ヒット数があるなら computeTyLuck を優先、無ければ z 近似で算出
+  if (hitsForTy != null && Number.isFinite(hitsForTy) && (hitsForTy as number) > 0) {
+    try {
+      const ty = computeTyLuck({
+        muBase: muBase as number,
+        muObs:  muObs as number,
+        sigmaHit: sigmaHit as number,
+        hits: hitsForTy,
+        // 互換パラメータ
+        machine, inputs,
+        coinUnitPriceYen: (machine as any)?.coinUnitPriceYen ?? null,
+        kHit: toNum(inputs["kHit"]) ?? undefined,
+      } as any);
+      out["tyLuckPct"]       = ty.luckPct;
+      out["tyLuckDirection"] = ty.direction;
+      out["tyLuck"]          = ty.luckPct; // 互換キー
+    } catch {
+      const z = ((muObs as number) - (muBase as number)) / (sigmaHit as number);
+      const luckPct = Math.max(0, Math.min(100, 100 * phi(Math.abs(z))));
+      out["tyLuckPct"]       = luckPct;
+      out["tyLuckDirection"] = z > 0 ? "up" : (z < 0 ? "down" : "flat");
+      out["tyLuck"]          = luckPct;
+    }
   } else {
-    out["tyLuckPct"] = 0;
-    out["tyLuckDirection"] = "flat";
+    // hits 未入力：z 近似で必ず出す
+    const z = ((muObs as number) - (muBase as number)) / (sigmaHit as number);
+    const luckPct = Math.max(0, Math.min(100, 100 * phi(Math.abs(z))));
+    out["tyLuckPct"]       = luckPct;
+    out["tyLuckDirection"] = z > 0 ? "up" : (z < 0 ? "down" : "flat");
+    out["tyLuck"]          = luckPct;
   }
+} else {
+  out["tyLuckPct"]       = 0;
+  out["tyLuckDirection"] = "flat";
+  out["tyLuck"]          = 0;
+}
+
+// （デバッグ）
+console.debug("[TY]", {
+  muBase, muObs, sigmaHit,
+  tyLuckPct: out["tyLuckPct"], dir: out["tyLuckDirection"]
+});
 
   return out;
 }
