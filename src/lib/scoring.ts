@@ -341,7 +341,9 @@ if (
       out["tyLuck"]          = ty.luckPct; // 互換キー
     } catch {
       const z = ((muObs as number) - (muBase as number)) / (sigmaHit as number);
-      const luckPct = Math.max(0, Math.min(100, 100 * phi(Math.abs(z))));
+      const phiAbs = phi(Math.abs(z));
+      const twoTailed = 2 * phiAbs - 1;
+      const luckPct = Math.max(0, Math.min(100, 100 * twoTailed));
       out["tyLuckPct"]       = luckPct;
       out["tyLuckDirection"] = z > 0 ? "up" : (z < 0 ? "down" : "flat");
       out["tyLuck"]          = luckPct;
@@ -349,7 +351,9 @@ if (
   } else {
     // hits 未入力：z 近似で必ず出す
     const z = ((muObs as number) - (muBase as number)) / (sigmaHit as number);
-    const luckPct = Math.max(0, Math.min(100, 100 * phi(Math.abs(z))));
+    const phiAbs = phi(Math.abs(z));
+    const twoTailed = 2 * phiAbs - 1;
+    const luckPct = Math.max(0, Math.min(100, 100 * twoTailed));
     out["tyLuckPct"]       = luckPct;
     out["tyLuckDirection"] = z > 0 ? "up" : (z < 0 ? "down" : "flat");
     out["tyLuck"]          = luckPct;
