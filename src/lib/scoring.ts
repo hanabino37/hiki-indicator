@@ -277,69 +277,80 @@ export function computeOutputs(
     out["tsLuckPct"]       = ts.luckPct;
     out["tsLuckDirection"] = ts.direction;
   } else {
-    out["tsLuckPct"] = 0;
-    out["tsLuckDirection"] = "flat";
+    // 入力不足時は「未算出」を明示する（0%を表示しない）
+    out["tsLuckPct"] = null;
+    out["tsLuckDirection"] = null;
   }
 
-  // --- TY-LUCK（1発の重さ：基準平均/観測平均/σhit）★修正：hits未入力でも必ず算出 ---
-const muBase =
-  toNum((machine as any)?.baselines?.avgCoinsBase) ??
-  toNum((machine.benchmarks as any)?.avgCoins?.baseline) ??
-  toNum(inputs["avgCoinsBase"]) ??
-  null;
+  // --- TY-LUCK（1発の重さ：基準平均/観測平均/σhit）
+  const muBase =
+    toNum((machine as any)?.baselines?.avgCoinsBase) ??
+    toNum((machine.benchmarks as any)?.avgCoins?.baseline) ??
+    toNum(inputs["avgCoinsBase"]) ??
+    null;
 
-// 観測平均（avgCoins が無ければ avgCoinsObs を使う）
-const muObs =
-  toNum(inputs["avgCoins"]) ??
-  toNum(inputs["avgCoinsObs"]) ??
-  null;
+  // 観測平均（avgCoins が無ければ avgCoinsObs を使う）
+  const muObs =
+    toNum(inputs["avgCoins"]) ??
+    toNum(inputs["avgCoinsObs"]) ??
+    null;
 
-// 表示互換：平均獲得枚数の出力キーも埋める
-if (muObs != null) out["avgCoins"] = muObs;
+  // 表示互換：平均獲得枚数の出力キーも埋める
+  if (muObs != null) out["avgCoins"] = muObs;
 
-// σ_hit：機種定義 > 入力 > 既定600
-const sigmaHit =
-  toNum((machine as any)?.sigma?.hit) ??
-  toNum((machine as any)?.ty?.sigmaHit) ??
-  toNum(inputs["sigmaHit"]) ??
-  600;
+  // σ_hit：機種定義 > 入力 > 既定600
+  const sigmaHit =
+    toNum((machine as any)?.sigma?.hit) ??
+    toNum((machine as any)?.ty?.sigmaHit) ??
+    toNum(inputs["sigmaHit"]) ??
+    600;
 
-// 任意：あれば使う（無ければ undefined）
-const hitsForTy = toNum(inputs["firstHitCount"]) ?? undefined;
+  // 任意：あれば使う（無ければ undefined）
+  const hitsForTy = toNum(inputs["firstHitCount"]) ?? undefined;
 
-// 正規近似（両側）フォールバック
-const erf = (x: number) => {
-  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
-  const sign = x < 0 ? -1 : 1;
-  const t = 1/(1+p*Math.abs(x));
-  const y = 1 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*Math.exp(-x*x);
-  return sign*y;
-};
-const phi = (x: number) => 0.5 * (1 + erf(x / Math.SQRT2));
+  // 正規近似（両側）フォールバック
+  const erf = (x: number) => {
+    const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    const t = 1/(1+p*Math.abs(x));
+    const y = 1 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*Math.exp(-x*x);
+    return sign*y;
+  };
+  const phi = (x: number) => 0.5 * (1 + erf(x / Math.SQRT2));
 
-if (
-  Number.isFinite(muBase) &&
-  Number.isFinite(muObs) &&
-  Number.isFinite(sigmaHit) &&
-  (sigmaHit as number) > 0
-) {
-  // ヒット数があるなら computeTyLuck を優先、無ければ z 近似で算出
-  if (hitsForTy != null && Number.isFinite(hitsForTy) && (hitsForTy as number) > 0) {
-    try {
-      const ty = computeTyLuck({
-        muBase: muBase as number,
-        muObs:  muObs as number,
-        sigmaHit: sigmaHit as number,
-        hits: hitsForTy,
-        // 互換パラメータ
-        machine, inputs,
-        coinUnitPriceYen: (machine as any)?.coinUnitPriceYen ?? null,
-        kHit: toNum(inputs["kHit"]) ?? undefined,
-      } as any);
-      out["tyLuckPct"]       = ty.luckPct;
-      out["tyLuckDirection"] = ty.direction;
-      out["tyLuck"]          = ty.luckPct; // 互換キー
-    } catch {
+  if (
+    Number.isFinite(muBase) &&
+    Number.isFinite(muObs) &&
+    Number.isFinite(sigmaHit) &&
+    (sigmaHit as number) > 0
+  ) {
+    // ヒット数があるなら computeTyLuck を優先、無ければ z 近似で算出
+    if (hitsForTy != null && Number.isFinite(hitsForTy) && (hitsForTy as number) > 0) {
+      try {
+        const ty = computeTyLuck({
+          muBase: muBase as number,
+          muObs:  muObs as number,
+          sigmaHit: sigmaHit as number,
+          hits: hitsForTy,
+          // 互換パラメータ
+          machine, inputs,
+          coinUnitPriceYen: (machine as any)?.coinUnitPriceYen ?? null,
+          kHit: toNum(inputs["kHit"]) ?? undefined,
+        } as any);
+        out["tyLuckPct"]       = ty.luckPct;
+        out["tyLuckDirection"] = ty.direction;
+        out["tyLuck"]          = ty.luckPct; // 互換キー
+      } catch {
+        const z = ((muObs as number) - (muBase as number)) / (sigmaHit as number);
+        const phiAbs = phi(Math.abs(z));
+        const twoTailed = 2 * phiAbs - 1;
+        const luckPct = Math.max(0, Math.min(100, 100 * twoTailed));
+        out["tyLuckPct"]       = luckPct;
+        out["tyLuckDirection"] = z > 0 ? "up" : (z < 0 ? "down" : "flat");
+        out["tyLuck"]          = luckPct;
+      }
+    } else {
+      // hits 未入力：z 近似で必ず出す
       const z = ((muObs as number) - (muBase as number)) / (sigmaHit as number);
       const phiAbs = phi(Math.abs(z));
       const twoTailed = 2 * phiAbs - 1;
@@ -349,26 +360,11 @@ if (
       out["tyLuck"]          = luckPct;
     }
   } else {
-    // hits 未入力：z 近似で必ず出す
-    const z = ((muObs as number) - (muBase as number)) / (sigmaHit as number);
-    const phiAbs = phi(Math.abs(z));
-    const twoTailed = 2 * phiAbs - 1;
-    const luckPct = Math.max(0, Math.min(100, 100 * twoTailed));
-    out["tyLuckPct"]       = luckPct;
-    out["tyLuckDirection"] = z > 0 ? "up" : (z < 0 ? "down" : "flat");
-    out["tyLuck"]          = luckPct;
+    // 入力が欠けている場合は未算出扱い（グラフに出さない）
+    out["tyLuckPct"]       = null;
+    out["tyLuckDirection"] = null;
+    out["tyLuck"]          = null;
   }
-} else {
-  out["tyLuckPct"]       = 0;
-  out["tyLuckDirection"] = "flat";
-  out["tyLuck"]          = 0;
-}
-
-// （デバッグ）
-console.debug("[TY]", {
-  muBase, muObs, sigmaHit,
-  tyLuckPct: out["tyLuckPct"], dir: out["tyLuckDirection"]
-});
 
   return out;
 }
