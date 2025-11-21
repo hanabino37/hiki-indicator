@@ -66,7 +66,6 @@ function normCdf(x: number): number {
   return res;
 }
 
-console.debug("[TY patch] computeIndicators live");
 export function computeIndicators(
   machine: MachineRecord,
   inputsRaw: Record<string, unknown>,
