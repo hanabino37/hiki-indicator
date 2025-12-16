@@ -9,7 +9,7 @@ import {
 import { RTP_EQUAL_EPSILON_PP } from "../config/constants";
 import { isNormalType } from "./machineKind"; // 既存どおり利用
 
-export function luckDirection(deltaRtp_pp: number): "up"|"down"|"flat" {
+export function luckDirection(deltaRtp_pp: number): "up" | "down" | "flat" {
   if (Math.abs(deltaRtp_pp) <= RTP_EQUAL_EPSILON_PP) return "flat";
   return deltaRtp_pp > 0 ? "up" : "down";
 }
@@ -89,7 +89,7 @@ export function computeOutputs(
   const normalSpins = toNum(inputs["normalSpins"]);
   const isNormal = isNormalType(machine); // ノーマル系判定（既存ロジック）
   const firstHitCount = toNum(inputs["firstHitCount"]) ?? toNum(inputs["firstHits"]) ?? null;
-  const bigCount      = toNum(inputs["bigCount"]) ?? null;
+  const bigCount = toNum(inputs["bigCount"]) ?? null;
 
   // すでに normalSpins, toNum, out はある前提
   const regCount = toNum(inputs["regCount"]) ?? toNum(inputs["regHits"]); // フォールバック任意
@@ -110,7 +110,7 @@ export function computeOutputs(
   }
 
   if (regHitRate_p != null) {
-    out["regHitRate"]  = regHitRate_p;               // ★このキー名がベンチの valueKey と一致必須
+    out["regHitRate"] = regHitRate_p;               // ★このキー名がベンチの valueKey と一致必須
     out["regHitDenom"] = 1 / (regHitRate_p || 1e-9); // 表示用（任意）
   }
   // normalSpins は既存の変数を使用
@@ -134,7 +134,7 @@ export function computeOutputs(
   }
 
   if (grapeRate_p != null) {
-    out["grapeRate"]  = grapeRate_p;                 // ← グラフはこれを見る（valueKeyで指定）
+    out["grapeRate"] = grapeRate_p;                 // ← グラフはこれを見る（valueKeyで指定）
     out["grapeDenom"] = 1 / (grapeRate_p || 1e-9);   // ← 表示用（必要なら）
   }
 
@@ -163,7 +163,7 @@ export function computeOutputs(
   }
 
   if (firstHitRate_p != null) {
-    out["firstHitRate"]  = firstHitRate_p;               // ベンチマークは p を期待
+    out["firstHitRate"] = firstHitRate_p;               // ベンチマークは p を期待
     out["firstHitDenom"] = 1 / (firstHitRate_p || 1e-9); // 表示用（任意）
   }
 
@@ -211,8 +211,8 @@ export function computeOutputs(
   const preset = String(inputs["presetSigma"] ?? "").toLowerCase();
   const presetSigma =
     preset === "a" ? "A" :
-    preset === "standard" ? "standard" :
-    preset === "rough" ? "rough" : null;
+      preset === "standard" ? "standard" :
+        preset === "rough" ? "rough" : null;
 
   const sigmaSpin = resolveSigmaSpinFinal({
     customSigma: toNum(inputs["customSigma"]) ?? null,
@@ -239,18 +239,18 @@ export function computeOutputs(
     sigmaSpin,
   });
 
-  out["poLuckPct"]        = po.luckPct;
-  out["poLuckDirection"]  = po.direction;
-  out["po_deltaRtp_pp"]   = po.deltaRtp_pp;
-  out["po_EV_per1000G"]   = po.luckEV_per1000G;
-  out["po_sigmaSpin"]     = po.sigmaSpinUsed;
+  out["poLuckPct"] = po.luckPct;
+  out["poLuckDirection"] = po.direction;
+  out["po_deltaRtp_pp"] = po.deltaRtp_pp;
+  out["po_EV_per1000G"] = po.luckEV_per1000G;
+  out["po_sigmaSpin"] = po.sigmaSpinUsed;
 
   // 後方互換（旧キー）
-  out["luckPct"]          = po.luckPct;
-  out["luckDirection"]    = po.direction;
+  out["luckPct"] = po.luckPct;
+  out["luckDirection"] = po.direction;
   out["luck_deltaRtp_pp"] = po.deltaRtp_pp;
   out["luck_EV_per1000G"] = po.luckEV_per1000G;
-  out["luck_sigmaSpin"]   = po.sigmaSpinUsed;
+  out["luck_sigmaSpin"] = po.sigmaSpinUsed;
 
   // --- TS-LUCK（当たり頻度：基準p, N, H）
   // 基準p（0..1）：BIGの基準pを firstHitRate.baseline として採用（無ければ観測p）
@@ -274,7 +274,7 @@ export function computeOutputs(
       spinsN: normalSpins as number,
       hits: hitsForTs as number,
     });
-    out["tsLuckPct"]       = ts.luckPct;
+    out["tsLuckPct"] = ts.luckPct;
     out["tsLuckDirection"] = ts.direction;
   } else {
     // 入力不足時は「未算出」を明示する（0%を表示しない）
@@ -310,11 +310,11 @@ export function computeOutputs(
 
   // 正規近似（両側）フォールバック
   const erf = (x: number) => {
-    const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+    const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
     const sign = x < 0 ? -1 : 1;
-    const t = 1/(1+p*Math.abs(x));
-    const y = 1 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*Math.exp(-x*x);
-    return sign*y;
+    const t = 1 / (1 + p * Math.abs(x));
+    const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    return sign * y;
   };
   const phi = (x: number) => 0.5 * (1 + erf(x / Math.SQRT2));
 
@@ -329,7 +329,7 @@ export function computeOutputs(
       try {
         const ty = computeTyLuck({
           muBase: muBase as number,
-          muObs:  muObs as number,
+          muObs: muObs as number,
           sigmaHit: sigmaHit as number,
           hits: hitsForTy,
           // 互換パラメータ
@@ -337,33 +337,29 @@ export function computeOutputs(
           coinUnitPriceYen: (machine as any)?.coinUnitPriceYen ?? null,
           kHit: toNum(inputs["kHit"]) ?? undefined,
         } as any);
-        out["tyLuckPct"]       = ty.luckPct;
+        out["tyLuckPct"] = ty.luckPct;
         out["tyLuckDirection"] = ty.direction;
-        out["tyLuck"]          = ty.luckPct; // 互換キー
+        out["tyLuck"] = ty.luckPct; // 互換キー
       } catch {
         const z = ((muObs as number) - (muBase as number)) / (sigmaHit as number);
-        const phiAbs = phi(Math.abs(z));
-        const twoTailed = 2 * phiAbs - 1;
-        const luckPct = Math.max(0, Math.min(100, 100 * twoTailed));
-        out["tyLuckPct"]       = luckPct;
+        const luckPct = phi(z) * 100;
+        out["tyLuckPct"] = luckPct;
         out["tyLuckDirection"] = z > 0 ? "up" : (z < 0 ? "down" : "flat");
-        out["tyLuck"]          = luckPct;
+        out["tyLuck"] = luckPct;
       }
     } else {
       // hits 未入力：z 近似で必ず出す
       const z = ((muObs as number) - (muBase as number)) / (sigmaHit as number);
-      const phiAbs = phi(Math.abs(z));
-      const twoTailed = 2 * phiAbs - 1;
-      const luckPct = Math.max(0, Math.min(100, 100 * twoTailed));
-      out["tyLuckPct"]       = luckPct;
+      const luckPct = phi(z) * 100;
+      out["tyLuckPct"] = luckPct;
       out["tyLuckDirection"] = z > 0 ? "up" : (z < 0 ? "down" : "flat");
-      out["tyLuck"]          = luckPct;
+      out["tyLuck"] = luckPct;
     }
   } else {
     // 入力が欠けている場合は未算出扱い（グラフに出さない）
-    out["tyLuckPct"]       = null;
+    out["tyLuckPct"] = null;
     out["tyLuckDirection"] = null;
-    out["tyLuck"]          = null;
+    out["tyLuck"] = null;
   }
 
   return out;

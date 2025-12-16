@@ -30,9 +30,9 @@ export function resolveSigmaSpinFinal(args: SigmaResolveArgs): number {
   // 2) プリセット
   if (presetSigma) {
     switch (presetSigma) {
-      case "A":        return 20;
+      case "A": return 20;
       case "standard": return 30;
-      case "rough":    return 45;
+      case "rough": return 45;
     }
   }
 
@@ -66,8 +66,8 @@ export type ComputePoLuckArgs = {
 
 function normCdf(x: number): number {
   // Abramowitz and Stegun 近似
-  const b1 =  0.319381530, b2 = -0.356563782, b3 = 1.781477937;
-  const b4 = -1.821255978, b5 = 1.330274429, p  = 0.2316419, c2 = 0.3989423;
+  const b1 = 0.319381530, b2 = -0.356563782, b3 = 1.781477937;
+  const b4 = -1.821255978, b5 = 1.330274429, p = 0.2316419, c2 = 0.3989423;
   const a = Math.abs(x);
   const t = 1.0 / (1.0 + a * p);
   const b = c2 * Math.exp((-x) * (x / 2.0));
@@ -132,12 +132,11 @@ export function computePoLuckMetrics(args: ComputePoLuckArgs): LuckOut {
     z = devCoins / (args.sigmaSpin * Math.sqrt(N as number));
   }
 
-  // Luck%（両側）
-  let luckPct = 0;
+  // Luck%（CDF Percentile）
+  let luckPct = 50; // default to mean
   if (z != null) {
-    const tail = 1 - normCdf(Math.abs(z));
-    const twoSided = 2 * tail;
-    luckPct = Math.max(0, Math.min(100, (1 - twoSided) * 100));
+    // CDFパーセンタイル: 0(悪) .. 50(並) .. 100(良)
+    luckPct = normCdf(z) * 100;
   }
 
   let luckEV_per1000G = 0;
@@ -165,12 +164,13 @@ export type ComputeHitLuckArgs = {
   pBase: number; // 期待ヒット率 p（= 1 / baselineDenom）
   spinsN: number; // 試行回数 N
   hits: number;   // 観測ヒット H
+  higherIsBetter?: boolean; // デフォルトtrue (当たりは多い方が良い)
 };
 
 export function computeHitLuck(args: ComputeHitLuckArgs): LuckOut {
-  const { pBase, spinsN, hits } = args;
+  const { pBase, spinsN, hits, higherIsBetter = true } = args;
   if (!(isPos(pBase) && isPos(spinsN))) {
-    return { direction: "flat", luckPct: 0, deltaRtp_pp: 0, luckEV_per1000G: 0, sigmaSpinUsed: 0 };
+    return { direction: "flat", luckPct: 50, deltaRtp_pp: 0, luckEV_per1000G: 0, sigmaSpinUsed: 0 };
   }
   const N = spinsN;
   const H = Math.max(0, Math.floor(hits));
@@ -179,10 +179,14 @@ export function computeHitLuck(args: ComputeHitLuckArgs): LuckOut {
   const mu = N * pBase;
   const sigma = Math.sqrt(N * pBase * (1 - pBase)) || 1e-9;
 
-  const z = (H - mu) / sigma;
-  const tail = 1 - normCdf(Math.abs(z));
-  const twoSided = 2 * tail;
-  const luckPct = Math.max(0, Math.min(100, (1 - twoSided) * 100));
+  let z = (H - mu) / sigma;
+
+  // もし「少ない方が良い（ハマり確率など）」場合はzを反転する必要があるが、
+  // TS-LUCKは通常「当たり」なので多いほうがLucky。
+  if (!higherIsBetter) z = -z;
+
+  const luckPct = normCdf(z) * 100;
+
   const direction: LuckOut["direction"] =
     Math.abs(pObs - pBase) < 1e-9 ? "flat" : (pObs > pBase ? "up" : "down");
 
@@ -210,7 +214,7 @@ export type ComputeTyLuckArgs = {
   kHit?: number;        // 既定 40（経験則ベースの穏当値）
 };
 
-export function resolveSigmaHit(args: {sigmaHit?: number; coinUnitPriceYen?: number | null; kHit?: number;}): number {
+export function resolveSigmaHit(args: { sigmaHit?: number; coinUnitPriceYen?: number | null; kHit?: number; }): number {
   if (isPos(args.sigmaHit)) return args.sigmaHit!;
   const cup = args.coinUnitPriceYen;
   const k = args.kHit ?? 40;
@@ -221,7 +225,7 @@ export function resolveSigmaHit(args: {sigmaHit?: number; coinUnitPriceYen?: num
 export function computeTyLuck(args: ComputeTyLuckArgs): LuckOut {
   const { muBase, muObs, hits } = args;
   if (!(isPos(muBase) && isPos(hits))) {
-    return { direction: "flat", luckPct: 0, deltaRtp_pp: 0, luckEV_per1000G: 0, sigmaSpinUsed: 0 };
+    return { direction: "flat", luckPct: 50, deltaRtp_pp: 0, luckEV_per1000G: 0, sigmaSpinUsed: 0 };
   }
   const H = Math.max(1, Math.floor(hits));
   const sigmaHit = resolveSigmaHit({ sigmaHit: args.sigmaHit, coinUnitPriceYen: args.coinUnitPriceYen, kHit: args.kHit });
@@ -230,9 +234,8 @@ export function computeTyLuck(args: ComputeTyLuckArgs): LuckOut {
   const se = sigmaHit / Math.sqrt(H);
   const z = (muObs - muBase) / (se || 1e-9);
 
-  const tail = 1 - normCdf(Math.abs(z));
-  const twoSided = 2 * tail;
-  const luckPct = Math.max(0, Math.min(100, (1 - twoSided) * 100));
+  const luckPct = normCdf(z) * 100;
+
   const direction: LuckOut["direction"] =
     Math.abs(muObs - muBase) < 1e-9 ? "flat" : (muObs > muBase ? "up" : "down");
 

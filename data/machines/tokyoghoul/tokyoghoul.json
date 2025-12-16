@@ -21,7 +21,10 @@
         "required": true,
         "min": 0,
         "step": 1,
-        "precision": 0
+        "precision": 0,
+        "tags": [
+          "spins:total"
+        ]
       },
       {
         "key": "normalSpins",
@@ -30,15 +33,22 @@
         "required": true,
         "min": 1,
         "step": 1,
-        "precision": 0
+        "precision": 0,
+        "tags": [
+          "spins:normal"
+        ]
       },
       {
-        "key": "firstHitRate",
-        "labelJP": "初当り確率",
+        "key": "firstHitCount",
+        "labelJP": "初当り回数",
         "type": "number",
-        "min": 1,
-        "step": 0.1,
-        "precision": 1
+        "min": 0,
+        "step": 1,
+        "precision": 0,
+        "unit": "回",
+        "tags": [
+          "count:firsthit"
+        ]
       },
       {
         "key": "avgCoins",
@@ -47,7 +57,10 @@
         "min": 0,
         "step": 1,
         "precision": 0,
-        "unit": "枚"
+        "unit": "枚",
+        "tags": [
+          "avg:coins"
+        ]
       },
       {
         "key": "diffCoins",
@@ -55,8 +68,18 @@
         "type": "number",
         "step": 1,
         "precision": 0,
-        "unit": "枚"
+        "unit": "枚",
+        "tags": [
+          "diff:coins"
+        ]
       }
+    ],
+    "formOrder": [
+      "spins:total",
+      "spins:normal",
+      "count:firsthit",
+      "avg:coins",
+      "diff:coins"
     ],
     "outputs": [
       {

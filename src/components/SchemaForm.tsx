@@ -46,7 +46,7 @@ function isNormalType(m: MachineRecord): boolean {
   if (t.has("type:at")) return false;
   // フォールバック：inputs のキーに葡萄などがあればノーマルっぽい
   const keys = (m.io?.inputs ?? []).map(d => d.key);
-  const marks = new Set(["regRate","bigRate","budouRate","grapeRate","bellRate","cherryRate"]);
+  const marks = new Set(["regRate", "bigRate", "budouRate", "grapeRate", "bellRate", "cherryRate"]);
   return keys.some(k => marks.has(k));
 }
 
@@ -164,15 +164,15 @@ export default function SchemaForm({
   // --- avgCoinsAuto 機能フラグ（この機種専用機能） ---
   const avgAuto = (machine as any)?.avgCoinsAuto?.enabled
     ? (machine as any).avgCoinsAuto as {
-        enabled: boolean;
-        targetKey?: string; // 既定: "avgCoinsObs"
-        bigKey?: string;    // 既定: "bigCount"
-        regKey?: string;    // 既定: "regCount"
-        bigAvg?: number;    // 既定: 240
-        regAvg?: number;    // 既定: 96
-        labelsJP?: { bigCount?: string; regCount?: string; button?: string };
-        round?: "nearest" | "floor" | "ceil";
-      }
+      enabled: boolean;
+      targetKey?: string; // 既定: "avgCoinsObs"
+      bigKey?: string;    // 既定: "bigCount"
+      regKey?: string;    // 既定: "regCount"
+      bigAvg?: number;    // 既定: 240
+      regAvg?: number;    // 既定: 96
+      labelsJP?: { bigCount?: string; regCount?: string; button?: string };
+      round?: "nearest" | "floor" | "ceil";
+    }
     : undefined;
 
   const targetKey = avgAuto?.targetKey ?? "avgCoinsObs";
@@ -221,37 +221,37 @@ export default function SchemaForm({
           type: "number",
           min: 0, step: 1, precision: 0, required: false,
           placeholder: "例）12",
-          ...( { tags } as any ),
+          ...({ tags } as any),
         } as FieldDef]);
       }
     };
     if (avgAuto?.enabled) {
-      ensureKey(bigKey, avgAuto?.labelsJP?.bigCount ?? "BIG回数", ["count","big"]);
-      ensureKey(regKey, avgAuto?.labelsJP?.regCount ?? "REG回数", ["count","reg"]);
+      ensureKey(bigKey, avgAuto?.labelsJP?.bigCount ?? "BIG回数", ["count", "big"]);
+      ensureKey(regKey, avgAuto?.labelsJP?.regCount ?? "REG回数", ["count", "reg"]);
     } else if (normal) {
       // avgAuto 無効でもノーマル系は便宜上BIG/REGを補う（従来挙動）
-      ensureKey("bigCount", "BIG回数", ["count","big"]);
-      ensureKey("regCount", "REG回数", ["count","reg"]);
+      ensureKey("bigCount", "BIG回数", ["count", "big"]);
+      ensureKey("regCount", "REG回数", ["count", "reg"]);
     }
 
     // ▼ AT系では BIG/REG を **最終的に必ず** 強制除去（混入対策）
     const afterForceDrop = isNormalType(machine)
       ? without
       : without.filter(d => {
-          const k = (d.key || "").toLowerCase();
-          return k !== "bigcount" && k !== "regcount";
-        });
+        const k = (d.key || "").toLowerCase();
+        return k !== "bigcount" && k !== "regcount";
+      });
 
     // ▼ 並びの決定（formOrder > フォールバック）
     const formOrder = arr((machine.io as any)?.formOrder).map((s) => String(s).toLowerCase());
     const hasFormOrder = formOrder.length > 0;
 
-    const AVG_KEYS = ["avgcoinsobs","avgcoins","avgcoinsperhit","avggetcoins"];
+    const AVG_KEYS = ["avgcoinsobs", "avgcoins", "avgcoinsperhit", "avggetcoins"];
 
     // ノーマル用：ブドウ等の「回数」検出（rate ではなく count/hit 系）
     const FRUIT_COUNT_RE = /(budou|grape|bell|cherry|suika|melon|fruit).*(count|hits?)$/i;
     // AT用：従来の「確率/レート」
-    const FRUIT_RATE_RE  = /(budou|grape|bell|cherry|suika|melon|fruit).*rate$/i;
+    const FRUIT_RATE_RE = /(budou|grape|bell|cherry|suika|melon|fruit).*rate$/i;
 
     const fallbackOrderIndex = (kRaw: string) => {
       const k = (kRaw || "").toLowerCase();
@@ -264,17 +264,17 @@ export default function SchemaForm({
         if (k === regKey.toLowerCase()) return 3;
         if (FRUIT_COUNT_RE.test(k)) return 4;
         if (AVG_KEYS.includes(k)) return 5;
-        if (k === "diffcoins")   return 6;
+        if (k === "diffcoins") return 6;
         return Number.MAX_SAFE_INTEGER;
       }
 
       // AT系（現状どおり）
       if (k === "totalspins") return 0;
       if (k === "normalspins") return 1;
-      if (k === "firsthits")   return 2;
+      if (k === "firsthits") return 2;
       if (AVG_KEYS.includes(k)) return 3;
       if (FRUIT_RATE_RE.test(k)) return 4;
-      if (k === "diffcoins")   return 5;
+      if (k === "diffcoins") return 5;
       return Number.MAX_SAFE_INTEGER;
     };
 
@@ -302,8 +302,13 @@ export default function SchemaForm({
   const initialValues: Values = useMemo(() => {
     const v: Values = {};
     for (const d of inputDefs) {
-      if ((d as any).default !== undefined) v[d.key] = (d as any).default;
-      else v[d.key] = d.type === "boolean" ? false : "";
+      // defaultValue優先、次いで default、最後に型ごとの空値
+      const defVal = (d as any).defaultValue ?? (d as any).default;
+      if (defVal !== undefined) {
+        v[d.key] = defVal;
+      } else {
+        v[d.key] = d.type === "boolean" ? false : "";
+      }
     }
     return v;
   }, [inputDefs]);
@@ -361,10 +366,10 @@ export default function SchemaForm({
     if (mode === "ceil") result = Math.ceil(base);
 
     setInputs((s) => ({
-     ...s,
-     [targetKey]: result,
-     avgCoins: result, // 互換: TY側がavgCoins参照でもOKにする
-     }));
+      ...s,
+      [targetKey]: result,
+      avgCoins: result, // 互換: TY側がavgCoins参照でもOKにする
+    }));
   };
 
   // —— フィールド描画（avgCoinsObs の右横に「自動」ボタンを追加） ——
@@ -400,9 +405,7 @@ export default function SchemaForm({
               {(avgAuto.labelsJP && avgAuto.labelsJP.button) || "自動"}
             </button>
           </div>
-          <div className="text-xs text-gray-600 mt-1">
-            計算式：BIG/(BIG+REG)×{avgAuto?.bigAvg ?? 240} + REG/(BIG+REG)×{avgAuto?.regAvg ?? 96}
-          </div>
+
         </label>
       );
     }
@@ -414,7 +417,7 @@ export default function SchemaForm({
         <InputControl
           def={def}
           value={inputs[def.key]}
-          onChange={(v) => setInputs((s: Values) => ({ ...s, [def.key]: v,...(def.key === targetKey ? { avgCoins: v } : {}), }))}
+          onChange={(v) => setInputs((s: Values) => ({ ...s, [def.key]: v, ...(def.key === targetKey ? { avgCoins: v } : {}), }))}
         />
       </label>
     );

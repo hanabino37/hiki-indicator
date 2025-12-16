@@ -16,6 +16,7 @@ export interface FieldDef {
   placeholder?: string;
   required?: boolean;
   default?: unknown;
+  defaultValue?: unknown;
   min?: number;
   max?: number;
   step?: number;
