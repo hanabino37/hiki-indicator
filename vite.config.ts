@@ -1,8 +1,9 @@
-﻿// vite.config.ts
-import { defineConfig } from "vite";
+﻿import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  base: "/hiki-indicator/",   // ← ここをプロジェクトページ用に変更
+  plugins: [react()],
+  base: "/hiki-indicator/",
   server: {
     host: true,
     port: 5173,

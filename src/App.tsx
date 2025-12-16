@@ -1,6 +1,7 @@
 ﻿// src/App.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import SchemaForm from "./components/SchemaForm";
+import Layout from "./components/Layout";
 import "./styles/schema.css";
 
 import type { MachineRecord } from "./types/schema";
@@ -66,7 +67,7 @@ export default function App() {
         }
         toDelete.forEach((k) => localStorage.removeItem(k));
       }
-    } catch {}
+    } catch { }
   }
 
   // 初回：前回選択を復元（※ === に修正、表示名も復元）
@@ -113,17 +114,17 @@ export default function App() {
     () =>
       machine && show && hasData
         ? (toChartRows(
-            computeIndicators(machine, inputs, outputs),
-            // 第二引数を受ける版に合わせて渡している場合の互換（不要なら削除OK）
-            outputs as any
-          ) as ViewChartRow[])
+          computeIndicators(machine, inputs, outputs),
+          // 第二引数を受ける版に合わせて渡している場合の互換（不要なら削除OK）
+          outputs
+        ) as ViewChartRow[])
         : [],
     [machine, inputs, outputs, show, hasData]
   );
 
   return (
-    <div>
-      <div style={{ padding: 8, color: "#0a0" }}>OK: App mounted</div>
+    <Layout>
+      <div style={{ padding: 8, color: "transparent", height: 0, overflow: "hidden" }}>{/* Debug/Mount Spacer */}</div>
 
       {/* 機種選択エリア */}
       <section className="hi-sec" style={{ marginBottom: 12 }}>
@@ -200,6 +201,6 @@ export default function App() {
           )}
         </>
       )}
-    </div>
+    </Layout>
   );
 }
